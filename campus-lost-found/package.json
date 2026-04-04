@@ -1,0 +1,12 @@
+{
+  "name": "campus-lost-found",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "start": "concurrently \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\""
+  }
+}
