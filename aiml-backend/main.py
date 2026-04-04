@@ -52,6 +52,13 @@ class MatchQuery(BaseModel):
     found_item: FoundItemInput
     lost_items: List[LostItemInput] # MERN ka backend idhar aayega.
 
+class VerificationCluesInput(BaseModel):
+    category: Optional[str] = "item"
+    clues: List[str]
+
+class VerificationQuestionsOutput(BaseModel):
+    questions: List[str]
+
 @app.get("/")
 def root():
     return {"message": "AI/ML Microservice is running successfully."}
@@ -123,6 +130,57 @@ def match_items(query: MatchQuery):
     results.sort(key=lambda x: x["match_score"], reverse=True)
     
     return {"status": "success", "matches": results}
+
+@app.post("/generate_questions", response_model=VerificationQuestionsOutput)
+def generate_questions(input_data: VerificationCluesInput):
+    """
+    Transforms secret verification points (e.g. 'red sticker', 'scratch on left') 
+    into challenge questions for the claimant.
+    """
+    questions = []
+    
+    # Generic question based on category
+    categoryName = input_data.category if input_data.category else "item"
+    
+    for clue in input_data.clues:
+        clue_lower = clue.lower()
+        
+        # Rule-based natural language generation
+        if "color" in clue_lower or any(c in clue_lower for c in COLORS):
+            questions.append(f"What color is the {categoryName} or any part of it?")
+        elif "sticker" in clue_lower:
+            questions.append(f"Are there any stickers on the {categoryName}? If yes, where/what are they?")
+        elif "scratch" in clue_lower or "dent" in clue_lower or "mark" in clue_lower:
+            questions.append(f"Are there any visible scratches, dents, or marks on the {categoryName}?")
+        elif "brand" in clue_lower:
+            questions.append(f"What is the brand or manufacturer of the {categoryName}?")
+        elif "wallpaper" in clue_lower or "screen" in clue_lower:
+            questions.append("Can you describe the lock screen wallpaper or any screen details?")
+        elif "engrave" in clue_lower or "text" in clue_lower or "name" in clue_lower:
+            questions.append("Is there any specific text, name, or engraving written on it?")
+        elif "inside" in clue_lower or "contain" in clue_lower:
+            questions.append(f"What items were inside the {categoryName}?")
+        else:
+            # Fallback using NLP to extract the main noun
+            nlp_model = get_nlp()
+            doc = nlp_model(clue)
+            nouns = [token.text for token in doc if token.pos_ == "NOUN"]
+            if nouns:
+                main_noun = nouns[-1]
+                questions.append(f"Can you provide details about the '{main_noun}' on the {categoryName}?")
+            else:
+                questions.append(f"Can you provide more specific details regarding this feature: '{clue}'?")
+                
+    # Remove duplicates but preserve order
+    seen = set()
+    unique_questions = [x for x in questions if not (x in seen or seen.add(x))]
+    
+    # Optional generic fallback if no clues or too few
+    if len(unique_questions) == 0:
+        unique_questions.append(f"What is the brand of the {categoryName}?")
+        unique_questions.append(f"Does the {categoryName} have any unique features?")
+
+    return {"questions": unique_questions[:5]} # Return up to 5 questions
 
 if __name__ == "__main__":
     import uvicorn
