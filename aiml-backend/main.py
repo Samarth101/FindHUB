@@ -3,6 +3,12 @@ from pydantic import BaseModel
 from typing import List, Optional
 import spacy
 from sentence_transformers import SentenceTransformer, util
+import os
+import json
+from dotenv import load_dotenv
+from google import genai
+
+load_dotenv()
 
 app = FastAPI(title="Smart Campus Found & Lost - AI Engine", version="1.0.0")
 
@@ -134,53 +140,46 @@ def match_items(query: MatchQuery):
 @app.post("/generate_questions", response_model=VerificationQuestionsOutput)
 def generate_questions(input_data: VerificationCluesInput):
     """
-    Transforms secret verification points (e.g. 'red sticker', 'scratch on left') 
-    into challenge questions for the claimant.
+    Transforms secret verification points into challenge questions using Gemini LLM.
     """
-    questions = []
-    
-    # Generic question based on category
-    categoryName = input_data.category if input_data.category else "item"
-    
-    for clue in input_data.clues:
-        clue_lower = clue.lower()
-        
-        # Rule-based natural language generation
-        if "color" in clue_lower or any(c in clue_lower for c in COLORS):
-            questions.append(f"What color is the {categoryName} or any part of it?")
-        elif "sticker" in clue_lower:
-            questions.append(f"Are there any stickers on the {categoryName}? If yes, where/what are they?")
-        elif "scratch" in clue_lower or "dent" in clue_lower or "mark" in clue_lower:
-            questions.append(f"Are there any visible scratches, dents, or marks on the {categoryName}?")
-        elif "brand" in clue_lower:
-            questions.append(f"What is the brand or manufacturer of the {categoryName}?")
-        elif "wallpaper" in clue_lower or "screen" in clue_lower:
-            questions.append("Can you describe the lock screen wallpaper or any screen details?")
-        elif "engrave" in clue_lower or "text" in clue_lower or "name" in clue_lower:
-            questions.append("Is there any specific text, name, or engraving written on it?")
-        elif "inside" in clue_lower or "contain" in clue_lower:
-            questions.append(f"What items were inside the {categoryName}?")
-        else:
-            # Fallback using NLP to extract the main noun
-            nlp_model = get_nlp()
-            doc = nlp_model(clue)
-            nouns = [token.text for token in doc if token.pos_ == "NOUN"]
-            if nouns:
-                main_noun = nouns[-1]
-                questions.append(f"Can you provide details about the '{main_noun}' on the {categoryName}?")
-            else:
-                questions.append(f"Can you provide more specific details regarding this feature: '{clue}'?")
-                
-    # Remove duplicates but preserve order
-    seen = set()
-    unique_questions = [x for x in questions if not (x in seen or seen.add(x))]
-    
-    # Optional generic fallback if no clues or too few
-    if len(unique_questions) == 0:
-        unique_questions.append(f"What is the brand of the {categoryName}?")
-        unique_questions.append(f"Does the {categoryName} have any unique features?")
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key or api_key == "your_google_gemini_api_key_here":
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured in .env file")
 
-    return {"questions": unique_questions[:5]} # Return up to 5 questions
+    client = genai.Client(api_key=api_key)
+    
+    categoryName = input_data.category if input_data.category else "item"
+    clues_str = ", ".join(input_data.clues)
+
+    prompt = f"""
+    You are an AI assistant for a Lost & Found system.
+    A user found a '{categoryName}' and left these secret verification clues: {clues_str}
+    
+    Generate 3 distinct, challenging ownership verification questions to ask the person claiming this item.
+    The questions should be designed to test if they know these secret clues. Do not reveal the clues in the questions.
+    
+    Format your response EXACTLY as a JSON array of strings, for example:
+    [
+        "What is the brand of the {categoryName}?",
+        "Are there any specific stickers on it?"
+    ]
+    Do not include markdown blocks or any other text.
+    """
+
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
+        
+        # Clean potential markdown from LLM output
+        text_resp = response.text.replace("```json", "").replace("```", "").strip()
+        questions = json.loads(text_resp)
+        return {"questions": questions}
+    except Exception as e:
+        print(f"LLM Error: {e}")
+        # Fallback
+        return {"questions": [f"What is the brand of the {categoryName}?", f"Does the {categoryName} have any unique features or marks?"]}
 
 if __name__ == "__main__":
     import uvicorn
