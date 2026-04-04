@@ -80,11 +80,12 @@ export default function Register() {
               type="password"
               name="password"
               required
+              minLength={8}
               value={formData.password}
               onChange={handleChange}
               className="w-full p-3 text-lg border-2 border-[#2d2d2d] focus-hand bg-white"
               style={{ borderRadius: 'var(--radius-wobbly-md)' }}
-              placeholder="Min. 6 characters"
+              placeholder="Min. 8 characters"
             />
           </div>
 
