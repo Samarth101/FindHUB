@@ -4,6 +4,7 @@ import { MapPin, Calendar, Tag, Palette, Type, ImagePlus, Send, Key, Lock, Packa
 import Button from '../../components/common/Button';
 import { RADIUS, CATEGORIES } from '../../utils/constants';
 import toast from 'react-hot-toast';
+import api from '../../api/http';
 
 const inputCls = 'w-full pl-10 pr-4 py-3 border-2 border-pencil bg-white font-body text-lg placeholder:text-pencil/30 focus-hand';
 
@@ -38,7 +39,10 @@ export default function FoundIntake() {
 
     setLoading(true);
     try {
-      // await foundApi.create({ ...form, secretClues: validClues });
+      await api.post('/found', {
+        ...form,
+        secretClues: validClues.map(text => ({ text })),
+      });
       toast.success('Found item recorded! AI matching has begun.');
       navigate('/admin/found-items');
     } catch (err) {

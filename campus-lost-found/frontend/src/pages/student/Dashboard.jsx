@@ -1,40 +1,97 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FileSearch, Eye, ShieldCheck, MessageCircle,
-  AlertTriangle, CheckCircle2, ArrowRight, TrendingUp, Package
+  AlertTriangle, CheckCircle2, ArrowRight, TrendingUp, Package, Loader2
 } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Badge  from '../../components/common/Badge';
 import { RADIUS } from '../../utils/constants';
 import { timeAgo } from '../../utils/formatDate';
+import api from '../../api/http';
 
-const stats = [
-  { label: 'Lost Reports',    value: 3,  icon: FileSearch,    color: 'bg-accent/10 text-accent',     border: 'border-accent' },
-  { label: 'Found Reports',   value: 1,  icon: Eye,           color: 'bg-ink/10 text-ink',           border: 'border-ink' },
-  { label: 'Pending Matches', value: 2,  icon: ShieldCheck,   color: 'bg-postit text-pencil',        border: 'border-pencil' },
-  { label: 'Items Returned',  value: 1,  icon: CheckCircle2,  color: 'bg-green-100 text-green-700',  border: 'border-green-700' },
-];
-
-const recentMatches = [
-  { id: 'm1', itemName: 'Blue Earbuds',   score: 0.89, status: 'pending',   time: new Date(Date.now() - 3600000) },
-  { id: 'm2', itemName: 'Black Backpack',  score: 0.72, status: 'verified',  time: new Date(Date.now() - 86400000) },
-];
-
-const recentActivity = [
-  { id: 'a1', text: 'You reported a lost water bottle.',       time: new Date(Date.now() - 7200000),  icon: FileSearch },
-  { id: 'a2', text: 'Match found for your blue earbuds!',      time: new Date(Date.now() - 3600000),  icon: ShieldCheck },
-  { id: 'a3', text: 'Community thread got 3 new replies.',     time: new Date(Date.now() - 1800000),  icon: MessageCircle },
-  { id: 'a4', text: 'Verification passed - chat unlocked!',    time: new Date(Date.now() - 86400000), icon: CheckCircle2 },
-];
-
-const statusColor = { pending: 'warning', verified: 'success', rejected: 'accent', manual_review: 'info' };
+const statusColor = { pending_verify: 'warning', pending: 'warning', verified: 'success', rejected: 'accent', manual_review: 'info' };
 
 export default function Dashboard() {
+  const [counts, setCounts] = useState({ lost: 0, found: 0, matches: 0, returned: 0 });
+  const [recentMatches, setRecentMatches] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        // Fire all requests concurrently
+        const [resLost, resMatches, resNotifs] = await Promise.all([
+          api.get('/lost/mine').catch(() => ({ data: { reports: [], total: 0 } })),
+          api.get('/matches/mine').catch(() => ({ data: { matches: [] } })),
+          api.get('/notifications', { params: { limit: 5 } }).catch(() => ({ data: { notifications: [] } })),
+        ]);
+
+        const lostReports = resLost.data?.reports || [];
+        const matches = resMatches.data?.matches || [];
+        const notifs = resNotifs.data?.notifications || [];
+
+        // Compute stats
+        const totalLost = resLost.data?.total || lostReports.length;
+        const pendingMatches = matches.filter(m => m.status === 'pending_verify' || m.status === 'pending').length;
+        const verifiedMatches = matches.filter(m => m.status === 'verified').length;
+
+        setCounts({
+          lost: totalLost,
+          found: 0, // Found items are admin-only in this privacy model
+          matches: pendingMatches,
+          returned: verifiedMatches,
+        });
+
+        // Recent matches (top 3)
+        setRecentMatches(matches.slice(0, 3).map(m => ({
+          id: m._id,
+          itemName: m.lostReport?.itemName || 'Unknown Item',
+          score: m.score || 0,
+          status: m.status || 'pending',
+          time: m.createdAt,
+        })));
+
+        // Recent activity from notifications
+        const iconMap = { match: ShieldCheck, chat: MessageCircle, handover: CheckCircle2, community: MessageCircle };
+        setRecentActivity(notifs.slice(0, 4).map(n => ({
+          id: n._id,
+          text: n.body || n.title,
+          time: n.createdAt,
+          icon: iconMap[n.type] || FileSearch,
+        })));
+
+      } catch (err) {
+        console.error('Dashboard fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
+
+  const dynStats = [
+    { label: 'Lost Reports',    value: counts.lost,      icon: FileSearch,    color: 'bg-red-50 text-[#ff4d4d]',     border: 'border-[#ff4d4d]' },
+    { label: 'Found Reports',   value: counts.found,     icon: Eye,           color: 'bg-blue-50 text-[#2d5da1]',    border: 'border-[#2d5da1]' },
+    { label: 'Pending Matches', value: counts.matches,   icon: ShieldCheck,   color: 'bg-yellow-50 text-yellow-600', border: 'border-yellow-500' },
+    { label: 'Items Returned',  value: counts.returned,  icon: CheckCircle2,  color: 'bg-green-50 text-green-600',   border: 'border-green-600' },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 size={32} className="animate-spin text-[#2d5da1]" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="font-heading text-4xl md:text-5xl font-bold">Dashboard<span className="text-accent">.</span></h1>
-        <p className="font-body text-xl text-pencil/60 mt-1">Welcome back! Here is what is happening with your items.</p>
+        <h1 className="font-heading text-4xl md:text-5xl font-bold dark:text-white">Dashboard<span className="text-[#ff4d4d]">.</span></h1>
+        <p className="font-body text-xl text-gray-500 mt-1">Welcome back! Here is what is happening with your items.</p>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -43,63 +100,74 @@ export default function Dashboard() {
         <Link to="/student/community"><Button variant="ghost" size="md"><MessageCircle size={18} strokeWidth={2.5} /> Community</Button></Link>
       </div>
 
+      {/* Stats cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {stats.map(({ label, value, icon: Icon, color, border }, i) => (
-          <div key={label} className={`relative bg-white border-2 ${border} p-5 shadow-hard-sm hover:shadow-hard hover:-translate-y-1 transition-all duration-100 ${i % 2 === 0 ? 'rotate-[0.5deg]' : '-rotate-[0.5deg]'}`} style={{ borderRadius: RADIUS.wobblyMd }}>
+        {dynStats.map(({ label, value, icon: Icon, color, border }, i) => (
+          <div key={label} className={`relative bg-white dark:bg-[#222] border-2 ${border} p-5 shadow-[2px_2px_0px_#2d2d2d] hover:shadow-[4px_4px_0px_#2d2d2d] hover:-translate-y-1 transition-all duration-100 ${i % 2 === 0 ? 'rotate-[0.5deg]' : '-rotate-[0.5deg]'}`} style={{ borderRadius: RADIUS.wobblyMd }}>
             <div className={`inline-flex p-2 mb-3 border-2 border-current ${color}`} style={{ borderRadius: RADIUS.blob }}><Icon size={22} strokeWidth={2.5} /></div>
-            <p className="font-heading text-3xl font-bold">{value}</p>
-            <p className="font-body text-sm text-pencil/60">{label}</p>
+            <p className="font-heading text-3xl font-bold dark:text-white">{value}</p>
+            <p className="font-body text-sm text-gray-500">{label}</p>
           </div>
         ))}
       </div>
 
+      {/* Recent Matches + Activity */}
       <div className="grid md:grid-cols-2 gap-8">
-        <div className="relative bg-white border-2 border-pencil p-6 shadow-hard-sm" style={{ borderRadius: RADIUS.wobblyMd }}>
-          <div className="tape-strip" />
-          <h2 className="font-heading text-2xl font-bold mb-4 pt-2 flex items-center gap-2"><ShieldCheck size={22} strokeWidth={2.5} className="text-ink" /> Recent Matches</h2>
+        <div className="relative bg-white dark:bg-[#222] border-2 border-[#2d2d2d] p-6 shadow-[2px_2px_0px_#2d2d2d]" style={{ borderRadius: RADIUS.wobblyMd }}>
+          <h2 className="font-heading text-2xl font-bold mb-4 flex items-center gap-2 dark:text-white"><ShieldCheck size={22} strokeWidth={2.5} className="text-[#2d5da1]" /> Recent Matches</h2>
           <div className="space-y-3">
-            {recentMatches.map(({ id, itemName, score, status, time }) => (
-              <div key={id} className="flex items-center justify-between p-3 border-2 border-dashed border-muted hover:border-pencil transition-colors" style={{ borderRadius: RADIUS.wobblySm }}>
-                <div className="flex items-center gap-3">
-                  <Package size={20} strokeWidth={2.5} className="text-pencil/50" />
-                  <div>
-                    <p className="font-body text-lg font-bold">{itemName}</p>
-                    <p className="font-body text-sm text-pencil/50">{Math.round(score * 100)}% match - {timeAgo(time)}</p>
+            {recentMatches.length === 0 ? (
+              <p className="text-gray-400 font-body py-4 text-center">No matches yet. Report a lost item and our AI will scan for matches.</p>
+            ) : (
+              recentMatches.map(({ id, itemName, score, status, time }) => (
+                <div key={id} className="flex items-center justify-between p-3 border-2 border-dashed border-gray-200 hover:border-[#2d2d2d] transition-colors" style={{ borderRadius: RADIUS.wobblySm }}>
+                  <div className="flex items-center gap-3">
+                    <Package size={20} strokeWidth={2.5} className="text-gray-400" />
+                    <div>
+                      <p className="font-body text-base font-bold dark:text-white">{itemName}</p>
+                      <p className="font-body text-sm text-gray-400">{Math.round(score * 100)}% match · {timeAgo(time)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={statusColor[status] || 'default'}>{status?.replace('_', ' ')}</Badge>
+                    {(status === 'pending' || status === 'pending_verify') && (
+                      <Link to={`/student/verify/${id}`}><button className="text-[#2d5da1] hover:text-[#ff4d4d] transition-colors"><ArrowRight size={18} strokeWidth={3} /></button></Link>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={statusColor[status]}>{status}</Badge>
-                  {status === 'pending' && (<Link to={`/student/verify/${id}`}><button className="text-ink hover:text-accent transition-colors"><ArrowRight size={18} strokeWidth={3} /></button></Link>)}
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
           <Link to="/student/matches" className="block mt-4"><Button variant="ghost" size="sm" className="w-full">View all matches</Button></Link>
         </div>
 
-        <div className="relative bg-white border-2 border-pencil p-6 shadow-hard-sm" style={{ borderRadius: RADIUS.wobblyMd }}>
-          <div className="pin-tack" />
-          <h2 className="font-heading text-2xl font-bold mb-4 pt-2 flex items-center gap-2"><TrendingUp size={22} strokeWidth={2.5} className="text-accent" /> Recent Activity</h2>
+        <div className="relative bg-white dark:bg-[#222] border-2 border-[#2d2d2d] p-6 shadow-[2px_2px_0px_#2d2d2d]" style={{ borderRadius: RADIUS.wobblyMd }}>
+          <h2 className="font-heading text-2xl font-bold mb-4 flex items-center gap-2 dark:text-white"><TrendingUp size={22} strokeWidth={2.5} className="text-[#ff4d4d]" /> Recent Activity</h2>
           <div className="space-y-3">
-            {recentActivity.map(({ id, text, time, icon: Icon }) => (
-              <div key={id} className="flex items-start gap-3 py-2 border-b border-dashed border-muted last:border-0">
-                <div className="flex-shrink-0 w-8 h-8 bg-muted/50 border-2 border-muted flex items-center justify-center mt-0.5" style={{ borderRadius: RADIUS.blob }}><Icon size={14} strokeWidth={2.5} /></div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-body text-base">{text}</p>
-                  <p className="font-body text-sm text-pencil/40">{timeAgo(time)}</p>
+            {recentActivity.length === 0 ? (
+              <p className="text-gray-400 font-body py-4 text-center">No recent activity. Start by reporting a lost item!</p>
+            ) : (
+              recentActivity.map(({ id, text, time, icon: Icon }) => (
+                <div key={id} className="flex items-start gap-3 py-2 border-b border-dashed border-gray-200 last:border-0">
+                  <div className="flex-shrink-0 w-8 h-8 bg-gray-100 border-2 border-gray-200 flex items-center justify-center mt-0.5" style={{ borderRadius: RADIUS.blob }}><Icon size={14} strokeWidth={2.5} /></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-body text-base dark:text-white">{text}</p>
+                    <p className="font-body text-sm text-gray-400">{timeAgo(time)}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
 
-      <div className="bg-postit border-2 border-pencil p-6 shadow-hard-sm flex flex-col md:flex-row items-center justify-between gap-4 transform -rotate-[0.5deg]" style={{ borderRadius: RADIUS.wobbly }}>
+      {/* CTA banner */}
+      <div className="bg-[#fef3c7] border-2 border-[#2d2d2d] p-6 shadow-[2px_2px_0px_#2d2d2d] flex flex-col md:flex-row items-center justify-between gap-4 transform -rotate-[0.5deg]" style={{ borderRadius: RADIUS.wobbly }}>
         <div className="flex items-center gap-3">
-          <AlertTriangle size={28} strokeWidth={2.5} className="text-accent flex-shrink-0" />
+          <AlertTriangle size={28} strokeWidth={2.5} className="text-[#ff4d4d] flex-shrink-0" />
           <div>
             <p className="font-heading text-xl font-bold">No match for an item?</p>
-            <p className="font-body text-base text-pencil/70">Start a community thread - let the campus help you look!</p>
+            <p className="font-body text-base text-gray-600">Start a community thread — let the campus help you look!</p>
           </div>
         </div>
         <Link to="/student/community"><Button variant="accent" size="md"><MessageCircle size={18} strokeWidth={2.5} /> Start thread</Button></Link>

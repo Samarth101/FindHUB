@@ -1,101 +1,68 @@
-import { GitCompare, Package, FileText, CheckCircle2, XCircle, Eye, Clock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ShieldCheck, CheckCircle, XCircle, Loader2, Package } from 'lucide-react';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import { RADIUS } from '../../utils/constants';
 import { timeAgo } from '../../utils/formatDate';
+import api from '../../api/http';
+import toast from 'react-hot-toast';
 
-const mockMatches = [
-  { id: 'm1', lostItem: 'Blue JBL Earbuds', foundItem: 'Wireless Earbuds (Blue)', score: 0.89, status: 'pending_verify', lostBy: 'Rahul S.', foundBy: 'Walk-in', time: new Date(Date.now() - 3600000) },
-  { id: 'm2', lostItem: 'Student ID Card', foundItem: 'College ID (laminated)', score: 0.92, status: 'verified', lostBy: 'Priya M.', foundBy: 'Amit K.', time: new Date(Date.now() - 86400000) },
-  { id: 'm3', lostItem: 'Red Keychain', foundItem: 'Keychain (3 keys)', score: 0.65, status: 'review', lostBy: 'Vikram D.', foundBy: 'Anonymous', time: new Date(Date.now() - 172800000) },
-  { id: 'm4', lostItem: 'Black Backpack', foundItem: 'Backpack (dark)', score: 0.72, status: 'rejected', lostBy: 'Neha R.', foundBy: 'Walk-in', time: new Date(Date.now() - 259200000) },
-];
+const statusVariant = { pending_verify: 'warning', verified: 'success', rejected: 'accent' };
 
-const statusCfg = {
-  pending_verify: { variant: 'warning', label: 'Pending Verify', icon: Clock },
-  verified:       { variant: 'success', label: 'Verified', icon: CheckCircle2 },
-  review:         { variant: 'info',    label: 'Manual Review', icon: Eye },
-  rejected:       { variant: 'accent',  label: 'Rejected', icon: XCircle },
-};
+export default function AdminMatches() {
+  const [matches, setMatches] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-function ScoreBar({ score }) {
-  const pct = Math.round(score * 100);
-  const color = score >= 0.85 ? 'bg-green-500' : score >= 0.6 ? 'bg-yellow-500' : 'bg-accent';
-  return (
-    <div className="flex items-center gap-2">
-      <div className="w-20 h-3 bg-muted border border-pencil/30 overflow-hidden" style={{ borderRadius: '999px' }}>
-        <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="font-body text-sm font-bold">{pct}%</span>
-    </div>
-  );
-}
+  const fetchMatches = () => {
+    setLoading(true);
+    api.get('/matches', { params: { limit: 50 } })
+      .then(res => { setMatches(res.data.matches || []); setTotal(res.data.total || 0); })
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  };
 
-export default function Matches() {
+  useEffect(() => { fetchMatches(); }, []);
+
+  const handleReview = async (id, decision) => {
+    try {
+      await api.patch(`/matches/${id}/review`, { decision });
+      toast.success(`Match ${decision}`);
+      fetchMatches();
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+  };
+
+  if (loading) return <div className="flex justify-center py-20"><Loader2 size={32} className="animate-spin text-[#2d5da1]" /></div>;
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-heading text-4xl md:text-5xl font-bold">Match Overview<span className="text-accent">.</span></h1>
-        <p className="font-body text-lg text-pencil/60 mt-1">AI-generated matches between lost reports and found items.</p>
+        <h1 className="font-heading text-4xl font-bold dark:text-white">All Matches<span className="text-[#ff4d4d]">.</span></h1>
+        <p className="font-body text-lg text-gray-500 mt-1">{total} total AI-generated matches.</p>
       </div>
-
-      <div className="space-y-4">
-        {mockMatches.map((match, i) => {
-          const cfg = statusCfg[match.status];
-          const StatusIcon = cfg.icon;
-          return (
-            <div key={match.id} className={`relative bg-white border-2 border-pencil p-5 shadow-hard-sm ${i % 2 === 0 ? 'rotate-[0.2deg]' : '-rotate-[0.2deg]'}`} style={{ borderRadius: RADIUS.wobblyMd }}>
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                {/* Match pair */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {/* Lost side */}
-                    <div className="flex items-center gap-2 bg-accent/5 border border-accent/30 px-3 py-2" style={{ borderRadius: RADIUS.wobblySm }}>
-                      <FileText size={16} strokeWidth={2.5} className="text-accent" />
-                      <div>
-                        <p className="font-body text-sm font-bold">{match.lostItem}</p>
-                        <p className="font-body text-xs text-pencil/40">by {match.lostBy}</p>
-                      </div>
-                    </div>
-
-                    {/* Arrow */}
-                    <div className="flex items-center gap-1">
-                      <GitCompare size={20} strokeWidth={2.5} className="text-ink" />
-                    </div>
-
-                    {/* Found side */}
-                    <div className="flex items-center gap-2 bg-ink/5 border border-ink/30 px-3 py-2" style={{ borderRadius: RADIUS.wobblySm }}>
-                      <Package size={16} strokeWidth={2.5} className="text-ink" />
-                      <div>
-                        <p className="font-body text-sm font-bold">{match.foundItem}</p>
-                        <p className="font-body text-xs text-pencil/40">by {match.foundBy}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 mt-3">
-                    <ScoreBar score={match.score} />
-                    <span className="font-body text-xs text-pencil/40">{timeAgo(match.time)}</span>
-                  </div>
-                </div>
-
-                {/* Status + Actions */}
-                <div className="flex items-center gap-3">
-                  <Badge variant={cfg.variant}>
-                    <StatusIcon size={14} className="inline mr-1" />
-                    {cfg.label}
-                  </Badge>
-                  {match.status === 'review' && (
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="accent">Approve</Button>
-                      <Button size="sm" variant="ghost">Reject</Button>
-                    </div>
-                  )}
+      <div className="space-y-3">
+        {matches.length === 0 ? <p className="text-gray-400 text-center py-8">No matches in database.</p> : matches.map((m, i) => (
+          <div key={m._id} className={`bg-white dark:bg-[#222] border-2 border-[#2d2d2d] p-5 shadow-[2px_2px_0px_#2d2d2d]`} style={{ borderRadius: RADIUS.wobblySm }}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <Package size={20} className="text-yellow-500" />
+                <div>
+                  <p className="font-bold dark:text-white">Lost: {m.lostReport?.itemName || '?'} ↔ Found: {m.foundItem?.itemName || '?'}</p>
+                  <p className="text-sm text-gray-400">Score: {Math.round((m.score || 0) * 100)}% · {m.lostReport?.category} · {timeAgo(m.createdAt)}</p>
                 </div>
               </div>
+              <div className="flex items-center gap-2">
+                <Badge variant={statusVariant[m.status] || 'default'}>{m.status?.replace('_', ' ')}</Badge>
+                {m.status === 'pending_verify' && (
+                  <>
+                    <Button size="sm" variant="accent" onClick={() => handleReview(m._id, 'verified')}><CheckCircle size={14} /> Verify</Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleReview(m._id, 'rejected')}><XCircle size={14} /> Reject</Button>
+                  </>
+                )}
+              </div>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );

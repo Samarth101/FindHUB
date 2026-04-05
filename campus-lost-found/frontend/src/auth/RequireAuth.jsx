@@ -4,9 +4,16 @@ import { useAuth } from './AuthProvider';
 
 export default function RequireAuth({ children, role }) {
   const { user } = useAuth();
-  
-  // For now, bypass auth so development is easier!
-  // if (!user) return <Navigate to="/login" replace />;
-  
+
+  // Not logged in → redirect to login
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Wrong role → redirect to appropriate dashboard
+  if (role && user.role !== role) {
+    return <Navigate to={user.role === 'admin' ? '/admin' : '/student'} replace />;
+  }
+
   return children;
 }

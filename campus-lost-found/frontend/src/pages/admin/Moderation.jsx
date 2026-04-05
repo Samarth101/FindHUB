@@ -1,71 +1,60 @@
-import { ShieldAlert, Flag, MessageCircle, User, CheckCircle2, Trash2, Eye } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AlertTriangle, Trash2, Loader2 } from 'lucide-react';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import { RADIUS } from '../../utils/constants';
 import { timeAgo } from '../../utils/formatDate';
+import api from '../../api/http';
 import toast from 'react-hot-toast';
 
-const mockFlagged = [
-  { id: 'f1', type: 'reply', content: 'BUY CHEAP PHONES AT www.scam.com', reporter: 'Auto-filter', author: 'SpamBot420', thread: 'Lost earbuds near library', time: new Date(Date.now() - 3600000), reason: 'Spam detected' },
-  { id: 'f2', type: 'reply', content: 'This is definitely mine, I can prove it! GIVE IT BACK!!!', reporter: 'Rahul S.', author: 'AggressiveUser', thread: 'Missing blue bottle', time: new Date(Date.now() - 7200000), reason: 'Hostile language' },
-  { id: 'f3', type: 'claim', content: 'Suspicious claim: user submitted 5 claims in 10 minutes for different items', reporter: 'System', author: 'Neha R.', thread: '', time: new Date(Date.now() - 86400000), reason: 'Rate limit abuse' },
-  { id: 'f4', type: 'reply', content: 'I saw it, DM me on Instagram @fake for details', reporter: 'Priya M.', author: 'ShadyUser', thread: 'Keys lost near parking', time: new Date(Date.now() - 172800000), reason: 'Sharing personal info' },
-];
-
-const typeIcon = { reply: MessageCircle, claim: Flag, user: User };
-const typeColor = { reply: 'text-ink', claim: 'text-accent', user: 'text-yellow-600' };
-
 export default function Moderation() {
-  const handleResolve = (id, action) => {
-    toast.success(`Content ${action === 'remove' ? 'removed' : 'dismissed'}.`);
+  const [flagged, setFlagged] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchFlagged = () => {
+    setLoading(true);
+    api.get('/admin/flagged')
+      .then(res => setFlagged(res.data.threads || []))
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
   };
+
+  useEffect(() => { fetchFlagged(); }, []);
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this thread?')) return;
+    try { await api.delete(`/admin/threads/${id}`); toast.success('Thread removed'); fetchFlagged(); }
+    catch { toast.error('Failed'); }
+  };
+
+  if (loading) return <div className="flex justify-center py-20"><Loader2 size={32} className="animate-spin text-[#2d5da1]" /></div>;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-heading text-4xl md:text-5xl font-bold">Moderation<span className="text-accent">.</span></h1>
-        <p className="font-body text-lg text-pencil/60 mt-1">Review flagged content and take action. {mockFlagged.length} items need attention.</p>
+        <h1 className="font-heading text-4xl font-bold dark:text-white">Moderation<span className="text-[#ff4d4d]">.</span></h1>
+        <p className="font-body text-lg text-gray-500 mt-1">Review flagged content and take action. {flagged.length} items need attention.</p>
       </div>
-
-      <div className="space-y-4">
-        {mockFlagged.map((item, i) => {
-          const Icon = typeIcon[item.type] || Flag;
-          return (
-            <div key={item.id} className={`relative bg-white border-2 border-accent/50 p-5 shadow-hard-sm ${i % 2 === 0 ? 'rotate-[0.2deg]' : '-rotate-[0.2deg]'}`} style={{ borderRadius: RADIUS.wobblyMd }}>
-              <div className="flex flex-col gap-4">
-                {/* Header */}
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 bg-accent/10 border-2 border-accent flex items-center justify-center ${typeColor[item.type]}`} style={{ borderRadius: RADIUS.blob }}>
-                      <Icon size={18} strokeWidth={2.5} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="accent">{item.type}</Badge>
-                        <span className="font-body text-sm text-pencil/40">{timeAgo(item.time)}</span>
-                      </div>
-                      <p className="font-body text-sm text-pencil/50">By: {item.author} | Reported by: {item.reporter}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="bg-accent/5 border-2 border-dashed border-accent/30 p-3" style={{ borderRadius: RADIUS.wobblySm }}>
-                  <p className="font-body text-base">{item.content}</p>
-                </div>
-
-                {/* Reason + Actions */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <p className="font-body text-sm text-pencil/60"><strong>Reason:</strong> {item.reason}{item.thread && ` - in "${item.thread}"`}</p>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="accent" onClick={() => handleResolve(item.id, 'remove')}><Trash2 size={14} /> Remove</Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleResolve(item.id, 'dismiss')}><CheckCircle2 size={14} /> Dismiss</Button>
-                  </div>
-                </div>
+      <div className="space-y-3">
+        {flagged.length === 0 ? (
+          <div className="text-center py-12">
+            <AlertTriangle size={48} className="mx-auto text-gray-200 mb-4" />
+            <p className="text-gray-400 font-body text-xl">No flagged content — all clear!</p>
+          </div>
+        ) : flagged.map(t => (
+          <div key={t._id} className="bg-white dark:bg-[#222] border-2 border-orange-400 p-4 shadow-[2px_2px_0px_#2d2d2d]" style={{ borderRadius: RADIUS.wobblySm }}>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-bold dark:text-white">{t.title}</p>
+                <p className="text-sm text-gray-400">by {t.author?.name || 'Unknown'} · {timeAgo(t.createdAt)}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="accent">flagged</Badge>
+                <Button size="sm" variant="danger" onClick={() => handleDelete(t._id)}><Trash2 size={14} /> Remove</Button>
               </div>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );

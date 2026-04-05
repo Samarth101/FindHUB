@@ -1,115 +1,81 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FileSearch, Eye, Package, MapPin, Calendar, Trash2, ArrowRight } from 'lucide-react';
-import Button from '../../components/common/Button';
+import { useState, useEffect } from 'react';
+import { FileSearch, Eye, Trash2, Loader2 } from 'lucide-react';
 import Badge from '../../components/common/Badge';
+import Button from '../../components/common/Button';
 import { RADIUS } from '../../utils/constants';
 import { formatDate } from '../../utils/formatDate';
+import api from '../../api/http';
+import toast from 'react-hot-toast';
 
-const mockLost = [
-  { id: 'l1', itemName: 'Blue JBL Earbuds', category: 'Electronics', color: 'Blue', location: 'Library 2nd floor', date: '2026-03-28', status: 'searching', hasMatch: true },
-  { id: 'l2', itemName: 'Black Water Bottle', category: 'Water Bottles', color: 'Black', location: 'Canteen', date: '2026-04-01', status: 'searching', hasMatch: false },
-  { id: 'l3', itemName: 'Student ID Card', category: 'ID / Documents', color: '', location: 'Parking Lot B', date: '2026-03-15', status: 'returned', hasMatch: true },
-];
-
-const mockFound = [
-  { id: 'f1', itemName: 'Red Notebook', category: 'Books & Notes', location: 'Lab 10', date: '2026-04-02', status: 'submitted' },
-];
-
-const statusBadge = {
-  searching: { variant: 'warning', label: 'Searching' },
-  matched:   { variant: 'info',    label: 'Match found' },
-  returned:  { variant: 'success', label: 'Returned' },
-  submitted: { variant: 'default', label: 'Submitted' },
-};
+const statusVariant = { searching: 'warning', matched: 'info', returned: 'success', closed: 'default' };
 
 export default function MyReports() {
   const [tab, setTab] = useState('lost');
+  const [lostReports, setLostReports] = useState([]);
+  const [lostTotal, setLostTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const reports = tab === 'lost' ? mockLost : mockFound;
+  useEffect(() => {
+    setLoading(true);
+    api.get('/lost/mine', { params: { limit: 50 } })
+      .then(res => { setLostReports(res.data.reports || []); setLostTotal(res.data.total || 0); })
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this report?')) return;
+    try {
+      await api.delete(`/lost/${id}`);
+      toast.success('Report deleted');
+      setLostReports(prev => prev.filter(r => r._id !== id));
+    } catch { toast.error('Failed to delete'); }
+  };
+
+  const reports = tab === 'lost' ? lostReports : [];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="font-heading text-4xl md:text-5xl font-bold">My Reports<span className="text-accent">.</span></h1>
-        <p className="font-body text-lg text-pencil/60 mt-1">Track all your lost and found submissions.</p>
-      </div>
+    <div className="space-y-6">
+      <h1 className="font-heading text-4xl font-bold dark:text-white">My Reports<span className="text-[#ff4d4d]">.</span></h1>
 
-      {/* Tabs */}
       <div className="flex gap-2">
-        <button
-          onClick={() => setTab('lost')}
-          className={`flex items-center gap-2 px-5 py-2.5 font-body text-lg border-2 transition-all duration-100 ${
-            tab === 'lost'
-              ? 'bg-accent text-white border-pencil shadow-hard-hover translate-x-[1px] translate-y-[1px]'
-              : 'bg-white text-pencil border-pencil hover:bg-muted'
-          }`}
-          style={{ borderRadius: RADIUS.wobblySm }}
-        >
-          <FileSearch size={18} strokeWidth={2.5} /> Lost ({mockLost.length})
-        </button>
-        <button
-          onClick={() => setTab('found')}
-          className={`flex items-center gap-2 px-5 py-2.5 font-body text-lg border-2 transition-all duration-100 ${
-            tab === 'found'
-              ? 'bg-ink text-white border-pencil shadow-hard-hover translate-x-[1px] translate-y-[1px]'
-              : 'bg-white text-pencil border-pencil hover:bg-muted'
-          }`}
-          style={{ borderRadius: RADIUS.wobblySm }}
-        >
-          <Eye size={18} strokeWidth={2.5} /> Found ({mockFound.length})
-        </button>
+        <Button variant={tab === 'lost' ? 'primary' : 'ghost'} size="sm" onClick={() => setTab('lost')}>
+          <FileSearch size={18} strokeWidth={2.5} /> Lost ({lostTotal})
+        </Button>
+        <Button variant={tab === 'found' ? 'primary' : 'ghost'} size="sm" onClick={() => setTab('found')}>
+          <Eye size={18} strokeWidth={2.5} /> Found (hidden)
+        </Button>
       </div>
 
-      {/* Report Cards */}
-      <div className="space-y-4">
-        {reports.length === 0 ? (
-          <div className="text-center py-12">
-            <Package size={48} strokeWidth={2} className="mx-auto text-pencil/20 mb-4" />
-            <p className="font-body text-xl text-pencil/50">No {tab} reports yet.</p>
-            <Link to={`/student/report-${tab}`} className="inline-block mt-4">
-              <Button>Report {tab} item</Button>
-            </Link>
-          </div>
-        ) : (
-          reports.map((report, i) => {
-            const badge = statusBadge[report.status] || statusBadge.searching;
-            return (
-              <div
-                key={report.id}
-                className={`relative bg-white border-2 border-pencil p-5 shadow-hard-sm hover:shadow-hard hover:-translate-y-0.5 transition-all duration-100 ${i % 2 === 0 ? 'rotate-[0.2deg]' : '-rotate-[0.2deg]'}`}
-                style={{ borderRadius: RADIUS.wobblyMd }}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-12 h-12 bg-muted/50 border-2 border-muted flex items-center justify-center" style={{ borderRadius: RADIUS.blob }}>
-                      <Package size={22} strokeWidth={2.5} className="text-pencil/50" />
-                    </div>
-                    <div>
-                      <h3 className="font-heading text-xl font-bold">{report.itemName}</h3>
-                      <p className="font-body text-sm text-pencil/50">{report.category}</p>
-                      <div className="flex flex-wrap gap-3 mt-2 font-body text-sm text-pencil/60">
-                        {report.location && <span className="flex items-center gap-1"><MapPin size={14} /> {report.location}</span>}
-                        <span className="flex items-center gap-1"><Calendar size={14} /> {formatDate(report.date)}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 sm:flex-col sm:items-end">
-                    <Badge variant={badge.variant}>{badge.label}</Badge>
-                    {report.hasMatch && tab === 'lost' && (
-                      <Link to={`/student/verify/${report.id}`}>
-                        <Button size="sm" variant="accent">
-                          Verify <ArrowRight size={14} strokeWidth={3} />
-                        </Button>
-                      </Link>
-                    )}
-                  </div>
+      {tab === 'found' ? (
+        <div className="text-center py-12 bg-gray-50 dark:bg-[#222] border-2 border-dashed border-gray-300 dark:border-gray-600" style={{ borderRadius: RADIUS.wobblyMd }}>
+          <Eye size={48} className="mx-auto text-gray-300 mb-4" />
+          <p className="text-gray-400 font-body text-lg">Found item reports are hidden for privacy.</p>
+          <p className="text-gray-400 font-body text-sm">They exist in the database and are used for AI matching, but you cannot view them.</p>
+        </div>
+      ) : loading ? (
+        <div className="flex justify-center py-12"><Loader2 size={32} className="animate-spin text-[#2d5da1]" /></div>
+      ) : reports.length === 0 ? (
+        <p className="text-gray-400 text-center py-12">No reports yet. Report a lost item to get started.</p>
+      ) : (
+        <div className="space-y-3">
+          {reports.map((r, i) => (
+            <div key={r._id} className={`bg-white dark:bg-[#222] border-2 border-[#2d2d2d] p-4 shadow-[2px_2px_0px_#2d2d2d] flex items-center justify-between gap-4 ${i % 2 === 0 ? 'rotate-[0.1deg]' : '-rotate-[0.1deg]'}`} style={{ borderRadius: RADIUS.wobblySm }}>
+              <div className="flex items-center gap-3 min-w-0">
+                <FileSearch size={20} className="text-[#ff4d4d] flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-bold dark:text-white truncate">{r.itemName}</p>
+                  <p className="text-sm text-gray-400">{r.category} · {r.location} · {formatDate(r.dateLost)}</p>
                 </div>
               </div>
-            );
-          })
-        )}
-      </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Badge variant={statusVariant[r.status] || 'default'}>{r.status}</Badge>
+                <button onClick={() => handleDelete(r._id)} className="text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

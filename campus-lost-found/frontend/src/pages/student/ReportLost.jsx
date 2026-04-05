@@ -4,6 +4,7 @@ import { MapPin, Calendar, Tag, Palette, Type, FileText, ImagePlus, Send, Info }
 import Button from '../../components/common/Button';
 import { RADIUS, CATEGORIES } from '../../utils/constants';
 import toast from 'react-hot-toast';
+import api from '../../api/http';
 
 const inputCls = 'w-full pl-10 pr-4 py-3 border-2 border-pencil bg-white font-body text-lg placeholder:text-pencil/30 focus-hand';
 
@@ -25,7 +26,7 @@ export default function ReportLost() {
     }
     setLoading(true);
     try {
-      // await lostApi.create(form);
+      await api.post('/lost', form);
       toast.success('Lost item reported!');
       setShowThreadPrompt(true);
     } catch (err) {

@@ -1,109 +1,102 @@
-import { useState, useRef, useEffect } from 'react';
-import { Send, MessageCircle, User } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MessageCircle, Send, Loader2 } from 'lucide-react';
 import Button from '../../components/common/Button';
 import { RADIUS } from '../../utils/constants';
 import { timeAgo } from '../../utils/formatDate';
-
-const mockRooms = [
-  { id: 'r1', name: 'Blue Earbuds - Match #1', lastMessage: 'When can you pick it up?', time: new Date(Date.now() - 300000), unread: 2 },
-  { id: 'r2', name: 'Student ID - Admin', lastMessage: 'Please bring your college ID for verification.', time: new Date(Date.now() - 3600000), unread: 0 },
-];
-
-const mockMessages = [
-  { id: 1, sender: 'finder', text: 'Hi! I found your earbuds at the library.', time: new Date(Date.now() - 7200000) },
-  { id: 2, sender: 'me', text: 'Thank you so much! I was looking everywhere for them.', time: new Date(Date.now() - 7000000) },
-  { id: 3, sender: 'finder', text: 'No worries! When can you pick them up?', time: new Date(Date.now() - 6800000) },
-  { id: 4, sender: 'me', text: 'I can come by tomorrow around 2pm. Does that work?', time: new Date(Date.now() - 6600000) },
-  { id: 5, sender: 'finder', text: 'When can you pick it up?', time: new Date(Date.now() - 300000) },
-];
+import { useAuth } from '../../auth/AuthProvider';
+import api from '../../api/http';
 
 export default function Chat() {
-  const [selectedRoom, setSelectedRoom] = useState(mockRooms[0]?.id);
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState(mockMessages);
-  const bottomRef = useRef(null);
+  const { user } = useAuth();
+  const [rooms, setRooms] = useState([]);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMsg, setNewMsg] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => {
+    api.get('/chat')
+      .then(res => {
+        const r = res.data.rooms || [];
+        setRooms(r);
+        if (r.length > 0) setSelectedRoom(r[0]._id);
+      })
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const handleSend = (e) => {
+  // Load messages when room changes
+  useEffect(() => {
+    if (!selectedRoom) return;
+    api.get(`/chat/${selectedRoom}`)
+      .then(res => setMessages(res.data.room?.messages || []))
+      .catch(err => console.error(err));
+  }, [selectedRoom]);
+
+  const handleSend = async (e) => {
     e.preventDefault();
-    if (!message.trim()) return;
-    setMessages([...messages, { id: messages.length + 1, sender: 'me', text: message, time: new Date() }]);
-    setMessage('');
+    if (!newMsg.trim() || !selectedRoom) return;
+    setSending(true);
+    try {
+      const res = await api.post(`/chat/${selectedRoom}/messages`, { text: newMsg });
+      setMessages(prev => [...prev, { ...res.data.message, sender: { _id: user._id, name: user.name } }]);
+      setNewMsg('');
+    } catch { /* silent */ }
+    finally { setSending(false); }
   };
+
+  if (loading) return <div className="flex justify-center py-20"><Loader2 size={32} className="animate-spin text-[#2d5da1]" /></div>;
 
   return (
     <div className="space-y-4">
-      <h1 className="font-heading text-4xl font-bold">Chat<span className="text-accent">.</span></h1>
+      <h1 className="font-heading text-4xl font-bold dark:text-white">Chat<span className="text-[#ff4d4d]">.</span></h1>
 
-      <div className="grid md:grid-cols-[280px_1fr] gap-4 h-[calc(100vh-240px)] min-h-[500px]">
-        {/* Room list */}
-        <div className="bg-white border-2 border-pencil overflow-y-auto" style={{ borderRadius: RADIUS.wobblyMd }}>
-          <div className="p-3 border-b-2 border-dashed border-muted">
-            <p className="font-heading text-lg font-bold">Conversations</p>
-          </div>
-          {mockRooms.map(room => (
-            <button
-              key={room.id}
-              onClick={() => setSelectedRoom(room.id)}
-              className={`w-full text-left p-4 border-b border-muted/50 transition-colors ${
-                selectedRoom === room.id ? 'bg-postit' : 'hover:bg-muted/30'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <p className="font-body text-base font-bold truncate pr-2">{room.name}</p>
-                {room.unread > 0 && (
-                  <span className="flex-shrink-0 w-5 h-5 bg-accent text-white text-xs font-bold rounded-full flex items-center justify-center">{room.unread}</span>
-                )}
-              </div>
-              <p className="font-body text-sm text-pencil/50 truncate">{room.lastMessage}</p>
-              <p className="font-body text-xs text-pencil/30 mt-1">{timeAgo(room.time)}</p>
-            </button>
-          ))}
+      {rooms.length === 0 ? (
+        <div className="text-center py-16">
+          <MessageCircle size={56} className="mx-auto text-gray-200 mb-4" />
+          <p className="text-gray-400 font-body text-xl">No chat rooms yet.</p>
+          <p className="text-gray-300 font-body">Chats are created after successful ownership verification.</p>
         </div>
-
-        {/* Chat area */}
-        <div className="bg-white border-2 border-pencil flex flex-col" style={{ borderRadius: RADIUS.wobblyMd }}>
-          {/* Header */}
-          <div className="p-4 border-b-2 border-pencil flex items-center gap-3">
-            <div className="w-8 h-8 bg-ink/10 border-2 border-ink flex items-center justify-center" style={{ borderRadius: RADIUS.blob }}>
-              <MessageCircle size={16} strokeWidth={2.5} className="text-ink" />
-            </div>
-            <p className="font-heading text-lg font-bold">{mockRooms.find(r => r.id === selectedRoom)?.name}</p>
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {messages.map(msg => (
-              <div key={msg.id} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`max-w-[75%] p-3 border-2 ${
-                    msg.sender === 'me'
-                      ? 'bg-ink text-white border-ink'
-                      : 'bg-white text-pencil border-pencil'
-                  }`}
-                  style={{ borderRadius: msg.sender === 'me' ? '15px 225px 15px 255px / 255px 15px 225px 15px' : RADIUS.wobblyMd }}
-                >
-                  <p className="font-body text-base">{msg.text}</p>
-                  <p className={`font-body text-xs mt-1 ${msg.sender === 'me' ? 'text-white/50' : 'text-pencil/40'}`}>{timeAgo(msg.time)}</p>
-                </div>
-              </div>
+      ) : (
+        <div className="flex gap-4 h-[500px]">
+          {/* Room list */}
+          <div className="w-64 border-2 border-[#2d2d2d] bg-white dark:bg-[#222] overflow-y-auto flex-shrink-0" style={{ borderRadius: RADIUS.wobblySm }}>
+            {rooms.map(r => (
+              <button
+                key={r._id}
+                onClick={() => setSelectedRoom(r._id)}
+                className={`w-full text-left p-3 border-b border-gray-100 dark:border-gray-700 transition-colors ${selectedRoom === r._id ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+              >
+                <p className="font-bold text-sm dark:text-white truncate">Room {r._id.slice(-6)}</p>
+                <p className="text-xs text-gray-400 truncate">{r.lastMessage || 'No messages'}</p>
+              </button>
             ))}
-            <div ref={bottomRef} />
           </div>
 
-          {/* Input */}
-          <form onSubmit={handleSend} className="p-3 border-t-2 border-dashed border-muted flex gap-2">
-            <input
-              type="text" value={message} onChange={(e) => setMessage(e.target.value)}
-              placeholder="Type a message..."
-              className="flex-1 px-4 py-3 border-2 border-pencil bg-white font-body text-lg placeholder:text-pencil/30 focus-hand"
-              style={{ borderRadius: RADIUS.wobblySm }}
-            />
-            <Button type="submit" size="md"><Send size={18} strokeWidth={3} /></Button>
-          </form>
+          {/* Chat area */}
+          <div className="flex-1 border-2 border-[#2d2d2d] bg-white dark:bg-[#222] flex flex-col" style={{ borderRadius: RADIUS.wobblySm }}>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {messages.map((m, i) => {
+                const isMe = m.sender?._id === user?._id || m.sender === user?._id;
+                return (
+                  <div key={m._id || i} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[70%] p-3 ${isMe ? 'bg-[#2d5da1] text-white' : 'bg-gray-100 dark:bg-gray-700 dark:text-white'}`} style={{ borderRadius: RADIUS.wobblySm }}>
+                      {!isMe && <p className="text-xs font-bold mb-1">{m.sender?.name || 'User'}</p>}
+                      <p className="text-sm">{m.text}</p>
+                      <p className={`text-[10px] mt-1 ${isMe ? 'text-blue-200' : 'text-gray-400'}`}>{timeAgo(m.createdAt)}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <form onSubmit={handleSend} className="flex gap-2 p-3 border-t border-gray-200 dark:border-gray-700">
+              <input value={newMsg} onChange={e => setNewMsg(e.target.value)} placeholder="Type a message..." className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-[#333] dark:text-white font-body text-sm" style={{ borderRadius: RADIUS.wobblySm }} />
+              <Button type="submit" size="sm" disabled={sending}><Send size={14} /></Button>
+            </form>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

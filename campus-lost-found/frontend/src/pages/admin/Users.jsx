@@ -1,72 +1,72 @@
-import { useState } from 'react';
-import { Users as UsersIcon, Search, Mail, Shield, Ban, CheckCircle2, UserCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Users as UsersIcon, Search, Ban, ShieldCheck, Loader2 } from 'lucide-react';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import { RADIUS } from '../../utils/constants';
 import { formatDate } from '../../utils/formatDate';
+import api from '../../api/http';
 import toast from 'react-hot-toast';
 
-const mockUsers = [
-  { id: 'u1', name: 'Rahul Sharma', email: 'rahul@college.edu', role: 'student', joinDate: '2026-01-15', lostCount: 3, foundCount: 1, status: 'active' },
-  { id: 'u2', name: 'Priya Mehta', email: 'priya@college.edu', role: 'student', joinDate: '2026-02-01', lostCount: 1, foundCount: 2, status: 'active' },
-  { id: 'u3', name: 'Amit Kumar', email: 'amit@college.edu', role: 'student', joinDate: '2026-01-20', lostCount: 0, foundCount: 3, status: 'active' },
-  { id: 'u4', name: 'Neha Roy', email: 'neha@college.edu', role: 'student', joinDate: '2026-03-05', lostCount: 2, foundCount: 0, status: 'banned' },
-  { id: 'u5', name: 'Admin User', email: 'admin@college.edu', role: 'admin', joinDate: '2025-08-01', lostCount: 0, foundCount: 0, status: 'active' },
-];
-
 export default function Users() {
+  const [users, setUsers] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const filtered = mockUsers.filter(u => u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()));
 
-  const handleBan = (name) => toast.success(`${name} has been banned.`);
-  const handleUnban = (name) => toast.success(`${name} has been unbanned.`);
+  const fetchUsers = () => {
+    setLoading(true);
+    api.get('/admin/users', { params: { search, limit: 50 } })
+      .then(res => { setUsers(res.data.users || []); setTotal(res.data.total || 0); })
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchUsers(); }, [search]);
+
+  const handleBan = async (id) => {
+    const reason = prompt('Ban reason (optional):') || '';
+    try { await api.patch(`/admin/users/${id}/ban`, { reason }); toast.success('User banned'); fetchUsers(); }
+    catch { toast.error('Failed'); }
+  };
+
+  const handleUnban = async (id) => {
+    try { await api.patch(`/admin/users/${id}/unban`); toast.success('User unbanned'); fetchUsers(); }
+    catch { toast.error('Failed'); }
+  };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-heading text-4xl md:text-5xl font-bold">User Management<span className="text-accent">.</span></h1>
-        <p className="font-body text-lg text-pencil/60 mt-1">{mockUsers.length} registered users.</p>
+        <h1 className="font-heading text-4xl font-bold dark:text-white">Users<span className="text-[#ff4d4d]">.</span></h1>
+        <p className="font-body text-lg text-gray-500 mt-1">{total} registered users.</p>
       </div>
-
-      <div className="relative">
-        <Search size={20} strokeWidth={2.5} className="absolute left-4 top-1/2 -translate-y-1/2 text-pencil/40" />
-        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or email..." className="w-full pl-12 pr-4 py-3 border-2 border-pencil bg-white font-body text-lg placeholder:text-pencil/30 focus-hand" style={{ borderRadius: RADIUS.wobblySm }} />
+      <div className="relative max-w-md">
+        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or email..." className="w-full pl-10 pr-4 py-2 border-2 border-[#2d2d2d] bg-white dark:bg-[#333] dark:text-white font-body" style={{ borderRadius: RADIUS.wobblySm }} />
       </div>
-
-      <div className="space-y-3">
-        {filtered.map((user, i) => (
-          <div key={user.id} className={`bg-white border-2 border-pencil p-4 shadow-hard-sm ${i % 2 === 0 ? 'rotate-[0.15deg]' : '-rotate-[0.15deg]'}`} style={{ borderRadius: RADIUS.wobblySm }}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 border-2 flex items-center justify-center font-heading text-lg font-bold ${user.role === 'admin' ? 'bg-ink text-white border-ink' : 'bg-postit border-pencil'}`} style={{ borderRadius: RADIUS.blob }}>
-                  {user.name[0]}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-heading text-lg font-bold">{user.name}</p>
-                    {user.role === 'admin' && <Badge variant="info"><Shield size={10} className="inline" /> Admin</Badge>}
-                    {user.status === 'banned' && <Badge variant="accent"><Ban size={10} className="inline" /> Banned</Badge>}
-                  </div>
-                  <p className="font-body text-sm text-pencil/50 flex items-center gap-1"><Mail size={12} /> {user.email}</p>
+      {loading ? <div className="flex justify-center py-12"><Loader2 size={32} className="animate-spin text-[#2d5da1]" /></div> : (
+        <div className="space-y-3">
+          {users.map(u => (
+            <div key={u._id} className="bg-white dark:bg-[#222] border-2 border-[#2d2d2d] p-4 shadow-[2px_2px_0px_#2d2d2d] flex items-center justify-between gap-4" style={{ borderRadius: RADIUS.wobblySm }}>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 bg-[#2d5da1] text-white flex items-center justify-center font-bold border-2 border-[#2d2d2d]" style={{ borderRadius: RADIUS.blob }}>{u.name?.[0]?.toUpperCase()}</div>
+                <div className="min-w-0">
+                  <p className="font-bold dark:text-white">{u.name}</p>
+                  <p className="text-sm text-gray-400">{u.email} · joined {formatDate(u.createdAt)}</p>
                 </div>
               </div>
-
-              <div className="flex items-center gap-4">
-                <div className="flex gap-4 font-body text-sm text-pencil/50">
-                  <span>Lost: {user.lostCount}</span>
-                  <span>Found: {user.foundCount}</span>
-                  <span>Joined: {formatDate(user.joinDate)}</span>
-                </div>
-                {user.role !== 'admin' && (
-                  user.status === 'banned'
-                    ? <Button size="sm" variant="secondary" onClick={() => handleUnban(user.name)}><CheckCircle2 size={14} /> Unban</Button>
-                    : <Button size="sm" variant="ghost" onClick={() => handleBan(user.name)}><Ban size={14} /> Ban</Button>
-                )}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Badge variant={u.role === 'admin' ? 'info' : 'default'}>{u.role}</Badge>
+                {u.isBanned ? (
+                  <Button size="sm" variant="secondary" onClick={() => handleUnban(u._id)}><ShieldCheck size={14} /> Unban</Button>
+                ) : u.role !== 'admin' ? (
+                  <Button size="sm" variant="danger" onClick={() => handleBan(u._id)}><Ban size={14} /> Ban</Button>
+                ) : null}
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

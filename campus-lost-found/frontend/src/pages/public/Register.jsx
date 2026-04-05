@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../api/http';
 import { toast } from 'react-hot-toast';
 import { UserPlus } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
@@ -17,10 +17,10 @@ export default function Register() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/register', formData);
+      const res = await api.post('/auth/register', formData);
       login(res.data.token, res.data.user);
       toast.success('Account created successfully!');
-      navigate('/');
+      navigate('/student');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed. Try again.');
     } finally {

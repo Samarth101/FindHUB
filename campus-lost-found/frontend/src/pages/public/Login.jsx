@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../api/http';
 import { toast } from 'react-hot-toast';
 import { LogIn } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
@@ -16,10 +16,10 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', { email, password });
+      const res = await api.post('/auth/login', { email, password });
       login(res.data.token, res.data.user);
       toast.success('Welcome back!');
-      navigate(res.data.user.role === 'admin' ? '/admin' : '/');
+      navigate(res.data.user.role === 'admin' ? '/admin' : '/student');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Login failed. Try again.');
     } finally {
