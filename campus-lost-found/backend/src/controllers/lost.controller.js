@@ -20,6 +20,15 @@ async function createLostReport(req, res, next) {
     // Kick off async ML matching (don't await — respond immediately)
     matchingService.triggerMatchForLost(report._id).catch(console.error);
 
+    // Notify user to update recent activity
+    await notificationService.send({
+      recipient: req.user._id,
+      type: 'report',
+      title: 'Lost Report Created',
+      body: `You reported a lost ${itemName}.`,
+      meta: { reportId: report._id }
+    });
+
     res.status(201).json({ report });
   } catch (err) {
     next(err);
