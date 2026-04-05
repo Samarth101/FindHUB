@@ -3,5 +3,5 @@ export const RADIUS = {
   wobblyMd: '12px',
   wobblySm: '6px',
   blob: '16px',
-};
-export const CATEGORIES = ['Electronics', 'Clothing', 'Accessories', 'Other'];
+}
+export const CATEGORIES = ['Electronics', 'Clothing', 'Accessories', 'Other']

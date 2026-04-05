@@ -8,7 +8,6 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach JWT token to every outgoing request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -17,13 +16,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 globally — redirect to login
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
       localStorage.removeItem('token');
-      // Only redirect if not already on login/register
       if (
         !window.location.pathname.includes('/login') &&
         !window.location.pathname.includes('/register')
@@ -33,6 +30,6 @@ api.interceptors.response.use(
     }
     return Promise.reject(err);
   }
-);
+)
 
-export default api;
+export default api

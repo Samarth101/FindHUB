@@ -15,7 +15,7 @@ export default function NotFound() {
         
         <h1 className="text-6xl font-black text-[#2d2d2d] mb-4">404</h1>
         <h2 className="text-2xl font-bold text-gray-800 mb-6 uppercase">
-          Page <span className="wavy-underline text-[#2d5da1]">Not Found</span>
+          Page <span className="text-[#2d5da1]">Not Found</span>
         </h2>
         
         <p className="text-lg text-gray-600 font-medium mb-8">

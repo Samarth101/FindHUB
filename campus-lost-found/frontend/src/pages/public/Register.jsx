@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api/http';
 import { toast } from 'react-hot-toast';
@@ -9,7 +9,7 @@ export default function Register() {
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth(); // Log them in automatically after registration
+  const { login } = useAuth();
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -21,8 +21,8 @@ export default function Register() {
       login(res.data.token, res.data.user);
       toast.success('Account created successfully!');
       navigate('/student');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Registration failed. Try again.');
+    } catch {
+      toast.error('Registration failed. Try again.');
     } finally {
       setLoading(false);
     }
@@ -107,5 +107,5 @@ export default function Register() {
         </div>
       </div>
     </div>
-  );
+  )
 }

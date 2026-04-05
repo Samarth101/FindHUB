@@ -41,7 +41,6 @@ export default function ImageUpload({ images = [], onChange, max = 3 }) {
 
   return (
     <div>
-      {/* Preview thumbnails */}
       {images.length > 0 && (
         <div className="flex gap-3 flex-wrap mb-3">
           {images.map((url, i) => (
