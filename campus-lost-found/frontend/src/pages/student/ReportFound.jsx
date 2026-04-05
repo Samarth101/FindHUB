@@ -34,6 +34,8 @@ export default function ReportFound() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
+
     if (!form.category || !form.itemName || !form.location || !form.date) {
       return toast.error('Please fill in all required fields!');
     }

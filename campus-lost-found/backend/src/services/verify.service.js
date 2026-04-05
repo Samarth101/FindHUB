@@ -34,15 +34,20 @@ async function gradeAnswers(answers, secretClues) {
 
   for (let i = 0; i < answers.length; i++) {
     const { questionId, question, answer } = answers[i];
-    // Match the clue by index position
-    const clue = secretClues[i];
-    if (!clue) {
-      scoredAnswers.push({ questionId, question, answer, score: 0 });
-      continue;
+    
+    // Find the best similarity score for this answer against ANY of the secret clues
+    let bestScoreForThisAnswer = 0;
+    
+    if (answer.trim()) {
+      for (const clue of secretClues) {
+        const score = await getSimilarity(answer, clue.text);
+        if (score > bestScoreForThisAnswer) {
+          bestScoreForThisAnswer = score;
+        }
+      }
     }
 
-    const score = await getSimilarity(answer, clue.text);
-    scoredAnswers.push({ questionId, question, answer, score });
+    scoredAnswers.push({ questionId, question, answer, score: bestScoreForThisAnswer });
   }
 
   const avgScore = scoredAnswers.length > 0

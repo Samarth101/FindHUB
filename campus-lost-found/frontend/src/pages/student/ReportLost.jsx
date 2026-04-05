@@ -13,6 +13,7 @@ export default function ReportLost() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [showThreadPrompt, setShowThreadPrompt] = useState(false);
+  const [createdReportId, setCreatedReportId] = useState(null);
   const [form, setForm] = useState({
     category: '', itemName: '', brand: '', color: '', description: '',
     distinguishingFeatures: '', location: '', date: '', images: [],
@@ -22,18 +23,36 @@ export default function ReportLost() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
+
     if (!form.category || !form.itemName || !form.location || !form.date) {
       return toast.error('Please fill in all required fields!');
     }
     setLoading(true);
     try {
-      await api.post('/lost', form);
+      const res = await api.post('/lost', form);
       toast.success('Lost item reported!');
+      setCreatedReportId(res.data.report._id);
       setShowThreadPrompt(true);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to submit report');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStartThread = async () => {
+    try {
+      await api.post('/community', {
+        lostReportId: createdReportId,
+        title: `Lost: ${form.itemName}`,
+        description: `I lost a ${form.category} near ${form.location}. Please let me know if anyone finds it!`,
+      });
+      toast.success('Community thread created automatically!');
+      navigate('/student/community');
+    } catch (err) {
+      toast.error('Failed to auto-create thread.');
+      navigate('/student/community'); // let them do it manually if it fails
     }
   };
 
@@ -51,7 +70,7 @@ export default function ReportLost() {
             Only vague, non-identifying details will be shared publicly. No brand, model, or images.
           </p>
           <div className="flex gap-4 justify-center">
-            <Button variant="accent" onClick={() => navigate('/student/community')}>Yes, start thread</Button>
+            <Button variant="accent" onClick={handleStartThread}>Yes, start thread</Button>
             <Button variant="ghost" onClick={() => navigate('/student/my-reports')}>No, skip</Button>
           </div>
         </div>
