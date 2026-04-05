@@ -16,24 +16,30 @@ def run_workflow():
             "description": "I lost my metal water bottle near the CS Lab yesterday. It's black and has a dent on the bottom.",
             "category": "water bottle",
             "color": "black",
+            "latitude": 40.7128,  # Example GPS coordinate
+            "longitude": -74.0060
         },
         {
             "lost_item_id": "L-456",
             "description": "Lost blue umbrella at the library cafe.",
             "category": "umbrella",
             "color": "blue",
+            "latitude": 34.0522,
+            "longitude": -118.2437
         }
     ]
     time.sleep(1)
 
     # 2. A new Found Item is submitted by a user
     print("🎒 USER B: Submits a Found Item report!")
-    print("   -> Found: 'A black metal bottle in the CS Lab hallway.'")
+    print("   -> Found: 'A black metal bottle in the CS Lab hallway.' (Tagging exact location...)")
     found_item_payload = {
         "found_item_id": "F-999",
         "description": "A black metal bottle in the CS Lab hallway.",
         "category": "bottle",
         "color": "black",
+        "latitude": 40.7129,  # Very close to L-123
+        "longitude": -74.0061
     }
     time.sleep(1)
 
@@ -84,6 +90,32 @@ def run_workflow():
             print("\n✅ AI RESPONSE: Final Challenge Questions rendered to React UI:")
             for i, q in enumerate(questions, 1):
                 print(f"   [Question {i}]: {q}")
+                
+            # 5. Simulate Claimant Answering the Questions
+            print("\n👤 USER A (Claimant): Submits answers to the challenge...")
+            claimant_answers = [
+                "It has a spiderman sticker on it",
+                "The milton logo is almost rubbed off",
+                "There is a big scratch/dent on the bottom left corner"
+            ]
+            print(f"   -> Answers: {claimant_answers}")
+            
+            # 6. Evaluate Answers
+            print("\n⚙️ MERN BACKEND: Sending Answers to AI Evaluator...")
+            eval_payload = {
+                "category": "bottle",
+                "secret_clues": secret_clues,
+                "claimant_answers": claimant_answers
+            }
+            
+            try:
+                eval_response = requests.post(f"{BASE_URL}/evaluate_answers", json=eval_payload)
+                eval_response.raise_for_status()
+                eval_data = eval_response.json()
+                print(f"\n✅ AI EVALUATOR VERDICT: PASSED = {eval_data.get('passed', False)}")
+                print(f"   -> Reason: {eval_data.get('reason', '')}")
+            except Exception as e:
+                print(f"❌ Error evaluating answers: {e}")
                 
         except Exception as e:
             print(f"❌ Error generating questions: {e}")
