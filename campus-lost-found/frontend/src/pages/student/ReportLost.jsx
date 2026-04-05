@@ -1,41 +1,47 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, Tag, Palette, Type, FileText, ImagePlus, Send, Info } from 'lucide-react';
-import Button from '../../components/common/Button';
-import ImageUpload from '../../components/common/ImageUpload';
-import { RADIUS, CATEGORIES } from '../../utils/constants';
-import toast from 'react-hot-toast';
-import api from '../../api/http';
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { MapPin, Calendar, Tag, Palette, Type, FileText, ImagePlus, Send, Info } from 'lucide-react'
+import Button from '../../components/common/Button'
+import ImageUpload from '../../components/common/ImageUpload'
+import { RADIUS, CATEGORIES } from '../../utils/constants'
+import toast from 'react-hot-toast'
+import api from '../../api/http'
 
-const inputCls = 'w-full pl-10 pr-4 py-3 border-2 border-pencil bg-white font-body text-lg placeholder:text-pencil/30 focus-hand';
+const inputCls = 'w-full pl-10 pr-4 py-3 border-2 border-pencil bg-white font-body text-lg placeholder:text-pencil/30 focus-hand'
 
 export default function ReportLost() {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [showThreadPrompt, setShowThreadPrompt] = useState(false);
+  const navigate = useNavigate()
+  const [loading, setLoading] = useState(false)
+  const [showThreadPrompt, setShowThreadPrompt] = useState(false)
   const [form, setForm] = useState({
     category: '', itemName: '', brand: '', color: '', description: '',
-    distinguishingFeatures: '', location: '', date: '', images: [],
-  });
+    distinguishingFeatures: '', location: '', date: '', images: []
+  })
 
-  const set = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const set = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
+
     if (!form.category || !form.itemName || !form.location || !form.date) {
-      return toast.error('Please fill in all required fields!');
+      return toast.error('Please fill in all required fields!')
     }
-    setLoading(true);
+
+    if (!form.images || form.images.length === 0) {
+      return toast.error('Please upload at least one image!')
+    }
+
+    setLoading(true)
     try {
-      await api.post('/lost', form);
-      toast.success('Lost item reported!');
-      setShowThreadPrompt(true);
+      await api.post('/lost', form)
+      toast.success('Lost item reported!')
+      setShowThreadPrompt(true)
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit report');
+      toast.error(err.response?.data?.message || 'Failed to submit report')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   if (showThreadPrompt) {
     return (
@@ -56,7 +62,7 @@ export default function ReportLost() {
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -142,7 +148,7 @@ export default function ReportLost() {
         </div>
 
         <div className="relative bg-white border-2 border-dashed border-muted p-6" style={{ borderRadius: RADIUS.wobblyMd }}>
-          <h2 className="font-heading text-2xl font-bold mb-4 flex items-center gap-2"><ImagePlus size={22} strokeWidth={2.5} /> Images (optional)</h2>
+          <h2 className="font-heading text-2xl font-bold mb-4 flex items-center gap-2"><ImagePlus size={22} strokeWidth={2.5} /> Images</h2>
           <ImageUpload images={form.images} onChange={(imgs) => setForm({ ...form, images: imgs })} max={3} />
         </div>
 
@@ -151,5 +157,5 @@ export default function ReportLost() {
         </Button>
       </form>
     </div>
-  );
+  )
 }
