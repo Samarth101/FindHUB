@@ -23,10 +23,9 @@ async function createLostReport(req, res, next) {
     // Notify user to update recent activity
     await notificationService.send({
       recipient: req.user._id,
-      type: 'report',
+      type: 'system',
       title: 'Lost Report Created',
-      body: `You reported a lost ${itemName}.`,
-      meta: { reportId: report._id }
+      body: `You reported a lost ${itemName}.`
     });
 
     res.status(201).json({ report });

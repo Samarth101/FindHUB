@@ -19,7 +19,7 @@ async function createFoundItem(req, res, next) {
       submitterAnonymous: !!submitterAnonymous,
       category, itemName, brand, color, description, location,
       dateFound: new Date(date),
-      secretClues: secretClues?.map(text => ({ text })) || [],
+      secretClues: secretClues || [],
     });
 
     // Kick off async ML matching against all open lost reports
