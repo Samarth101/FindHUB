@@ -37,7 +37,7 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="font-heading text-4xl md:text-5xl font-bold dark:text-white">Admin Dashboard<span className="text-[#ff4d4d]">.</span></h1>
+        <h1 className="font-heading text-4xl md:text-5xl font-bold text-[#2d2d2d]">Admin Dashboard<span className="text-[#ff4d4d]">.</span></h1>
         <p className="font-body text-xl text-gray-500 mt-1">System overview — all data from live database.</p>
       </div>
 
@@ -45,14 +45,14 @@ export default function AdminDashboard() {
         {cards.map(({ label, value, icon: Icon, color, bg }, i) => (
           <div key={label} className={`${bg} border-2 ${color} p-5 shadow-[2px_2px_0px_#2d2d2d] hover:shadow-[4px_4px_0px_#2d2d2d] hover:-translate-y-1 transition-all ${i % 2 === 0 ? 'rotate-[0.3deg]' : '-rotate-[0.3deg]'}`} style={{ borderRadius: RADIUS.wobblyMd }}>
             <div className={`inline-flex p-2 mb-3 border-2 border-current`} style={{ borderRadius: RADIUS.blob }}><Icon size={22} strokeWidth={2.5} /></div>
-            <p className="font-heading text-3xl font-bold">{value}</p>
+            <p className="font-heading text-3xl font-bold text-[#2d2d2d]">{value}</p>
             <p className="font-body text-sm text-gray-500">{label}</p>
           </div>
         ))}
       </div>
 
       <div>
-        <h2 className="font-heading text-2xl font-bold mb-4 dark:text-white flex items-center gap-2"><TrendingUp size={22} /> Quick Actions</h2>
+        <h2 className="font-heading text-2xl font-bold mb-4 text-[#2d2d2d] flex items-center gap-2"><TrendingUp size={22} /> Quick Actions</h2>
         <div className="flex flex-wrap gap-3">
           {quickLinks.map(({ label, path, icon: Icon }) => (
             <Link key={path} to={path}><Button size="md" variant="secondary"><Icon size={18} strokeWidth={2.5} /> {label}</Button></Link>

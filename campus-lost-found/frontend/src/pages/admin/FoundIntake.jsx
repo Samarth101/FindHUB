@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Calendar, Tag, Palette, Type, ImagePlus, Send, Key, Lock, PackagePlus, Info } from 'lucide-react';
 import Button from '../../components/common/Button';
+import ImageUpload from '../../components/common/ImageUpload';
 import { RADIUS, CATEGORIES } from '../../utils/constants';
 import toast from 'react-hot-toast';
 import api from '../../api/http';
@@ -176,10 +177,7 @@ export default function FoundIntake() {
         {/* Images */}
         <div className="relative bg-white border-2 border-dashed border-muted p-6" style={{ borderRadius: RADIUS.wobblyMd }}>
           <h2 className="font-heading text-2xl font-bold mb-4 flex items-center gap-2"><ImagePlus size={22} strokeWidth={2.5} /> Images</h2>
-          <div className="border-2 border-dashed border-pencil/30 p-8 text-center hover:border-pencil transition-colors cursor-pointer" style={{ borderRadius: RADIUS.wobblySm }}>
-            <ImagePlus size={40} strokeWidth={2} className="mx-auto text-pencil/30 mb-2" />
-            <p className="font-body text-base text-pencil/50">Click or drag images</p>
-          </div>
+          <ImageUpload images={form.images} onChange={(imgs) => setForm({ ...form, images: imgs })} max={3} />
         </div>
 
         <Button type="submit" className="w-full" size="lg" disabled={loading}>

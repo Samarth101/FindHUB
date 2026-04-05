@@ -90,7 +90,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="font-heading text-4xl md:text-5xl font-bold dark:text-white">Dashboard<span className="text-[#ff4d4d]">.</span></h1>
+        <h1 className="font-heading text-4xl md:text-5xl font-bold text-[#2d2d2d]">Dashboard<span className="text-[#ff4d4d]">.</span></h1>
         <p className="font-body text-xl text-gray-500 mt-1">Welcome back! Here is what is happening with your items.</p>
       </div>
 
@@ -103,9 +103,9 @@ export default function Dashboard() {
       {/* Stats cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {dynStats.map(({ label, value, icon: Icon, color, border }, i) => (
-          <div key={label} className={`relative bg-white dark:bg-[#222] border-2 ${border} p-5 shadow-[2px_2px_0px_#2d2d2d] hover:shadow-[4px_4px_0px_#2d2d2d] hover:-translate-y-1 transition-all duration-100 ${i % 2 === 0 ? 'rotate-[0.5deg]' : '-rotate-[0.5deg]'}`} style={{ borderRadius: RADIUS.wobblyMd }}>
+          <div key={label} className={`relative bg-white border-2 ${border} p-5 shadow-[2px_2px_0px_#2d2d2d] hover:shadow-[4px_4px_0px_#2d2d2d] hover:-translate-y-1 transition-all duration-100 ${i % 2 === 0 ? 'rotate-[0.5deg]' : '-rotate-[0.5deg]'}`} style={{ borderRadius: RADIUS.wobblyMd }}>
             <div className={`inline-flex p-2 mb-3 border-2 border-current ${color}`} style={{ borderRadius: RADIUS.blob }}><Icon size={22} strokeWidth={2.5} /></div>
-            <p className="font-heading text-3xl font-bold dark:text-white">{value}</p>
+            <p className="font-heading text-3xl font-bold text-[#2d2d2d]">{value}</p>
             <p className="font-body text-sm text-gray-500">{label}</p>
           </div>
         ))}
@@ -113,8 +113,8 @@ export default function Dashboard() {
 
       {/* Recent Matches + Activity */}
       <div className="grid md:grid-cols-2 gap-8">
-        <div className="relative bg-white dark:bg-[#222] border-2 border-[#2d2d2d] p-6 shadow-[2px_2px_0px_#2d2d2d]" style={{ borderRadius: RADIUS.wobblyMd }}>
-          <h2 className="font-heading text-2xl font-bold mb-4 flex items-center gap-2 dark:text-white"><ShieldCheck size={22} strokeWidth={2.5} className="text-[#2d5da1]" /> Recent Matches</h2>
+        <div className="relative bg-white border-2 border-[#2d2d2d] p-6 shadow-[2px_2px_0px_#2d2d2d]" style={{ borderRadius: RADIUS.wobblyMd }}>
+          <h2 className="font-heading text-2xl font-bold mb-4 flex items-center gap-2 text-[#2d2d2d]"><ShieldCheck size={22} strokeWidth={2.5} className="text-[#2d5da1]" /> Recent Matches</h2>
           <div className="space-y-3">
             {recentMatches.length === 0 ? (
               <p className="text-gray-400 font-body py-4 text-center">No matches yet. Report a lost item and our AI will scan for matches.</p>
@@ -124,7 +124,7 @@ export default function Dashboard() {
                   <div className="flex items-center gap-3">
                     <Package size={20} strokeWidth={2.5} className="text-gray-400" />
                     <div>
-                      <p className="font-body text-base font-bold dark:text-white">{itemName}</p>
+                      <p className="font-body text-base font-bold text-[#2d2d2d]">{itemName}</p>
                       <p className="font-body text-sm text-gray-400">{Math.round(score * 100)}% match · {timeAgo(time)}</p>
                     </div>
                   </div>
@@ -141,8 +141,8 @@ export default function Dashboard() {
           <Link to="/student/matches" className="block mt-4"><Button variant="ghost" size="sm" className="w-full">View all matches</Button></Link>
         </div>
 
-        <div className="relative bg-white dark:bg-[#222] border-2 border-[#2d2d2d] p-6 shadow-[2px_2px_0px_#2d2d2d]" style={{ borderRadius: RADIUS.wobblyMd }}>
-          <h2 className="font-heading text-2xl font-bold mb-4 flex items-center gap-2 dark:text-white"><TrendingUp size={22} strokeWidth={2.5} className="text-[#ff4d4d]" /> Recent Activity</h2>
+        <div className="relative bg-white border-2 border-[#2d2d2d] p-6 shadow-[2px_2px_0px_#2d2d2d]" style={{ borderRadius: RADIUS.wobblyMd }}>
+          <h2 className="font-heading text-2xl font-bold mb-4 flex items-center gap-2 text-[#2d2d2d]"><TrendingUp size={22} strokeWidth={2.5} className="text-[#ff4d4d]" /> Recent Activity</h2>
           <div className="space-y-3">
             {recentActivity.length === 0 ? (
               <p className="text-gray-400 font-body py-4 text-center">No recent activity. Start by reporting a lost item!</p>
@@ -151,7 +151,7 @@ export default function Dashboard() {
                 <div key={id} className="flex items-start gap-3 py-2 border-b border-dashed border-gray-200 last:border-0">
                   <div className="flex-shrink-0 w-8 h-8 bg-gray-100 border-2 border-gray-200 flex items-center justify-center mt-0.5" style={{ borderRadius: RADIUS.blob }}><Icon size={14} strokeWidth={2.5} /></div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-body text-base dark:text-white">{text}</p>
+                    <p className="font-body text-base text-[#2d2d2d]">{text}</p>
                     <p className="font-body text-sm text-gray-400">{timeAgo(time)}</p>
                   </div>
                 </div>

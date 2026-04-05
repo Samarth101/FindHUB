@@ -3,6 +3,7 @@ const cors       = require('cors');
 const helmet     = require('helmet');
 const compression = require('compression');
 const morgan     = require('morgan');
+const path       = require('path');
 
 const corsOptions = require('./config/cors');
 const { nodeEnv } = require('./config/env');
@@ -52,6 +53,19 @@ app.use('/api/chat',          chatRoutes);
 app.use('/api/notifications', notifRoutes);
 app.use('/api/handovers',     handoverRoutes);
 app.use('/api/admin',         adminRoutes);
+
+/* ── File uploads ──────────────────────────────────────────────────── */
+const upload = require('./middleware/upload');
+const { authenticate } = require('./middleware/auth');
+
+// Serve uploaded files as static
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Upload endpoint — accepts up to 3 images
+app.post('/api/upload', authenticate, upload.array('images', 3), (req, res) => {
+  const urls = (req.files || []).map(f => `/uploads/${f.filename}`);
+  res.json({ urls });
+});
 
 /* ── 404 & error handling ───────────────────────────────────────────── */
 app.use(notFound);
