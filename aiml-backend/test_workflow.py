@@ -122,6 +122,38 @@ def run_workflow():
     else:
         print("\nℹ️ No strong matches found. Saving to Watchlist...")
 
+    # 7. Simulate Missing Item Thread & Analysis
+    print("\n" + "="*50)
+    print("🕵️‍♂️ Phase 8: CROWDSOURCED THREAD ANALYSIS")
+    print("   -> MERN Admin clicks 'Analyze Thread' on a noisy discussion board.")
+    
+    thread_payload = {
+        "item_title": "Lost black Milton bottle near Lab 10",
+        "comments": [
+            {"user_id": "Anon1", "timestamp": "Tuesday 2:00 PM", "text": "I saw a black bottle sitting on Desk 4 in Lab 10."},
+            {"user_id": "Anon2", "timestamp": "Tuesday 3:15 PM", "text": "I was in Lab 10, someone picked it up and said they were taking it to the Library to turn it in."},
+            {"user_id": "Anon3", "timestamp": "Tuesday 4:00 PM", "text": "Checked the library, they said the guy never dropped it off. He had a red backpack."},
+            {"user_id": "Anon4", "timestamp": "Wednesday 9:00 AM", "text": "Wait, I saw a bottle matching that description near the Cafeteria corridor just now!"}
+        ]
+    }
+    
+    try:
+        print("\n🧠 AI: Gemini extracting timeline and clues from chaos...")
+        thread_response = requests.post(f"{BASE_URL}/analyze_thread", json=thread_payload)
+        thread_response.raise_for_status()
+        thread_data = thread_response.json()
+        
+        print("\n✅ AI THREAD INTELLIGENCE REPORT:")
+        print(f"   📍 Likely Locations: {', '.join(thread_data.get('likely_locations', []))}")
+        print(f"   🔍 Synthesized Clues: {', '.join(thread_data.get('synthesized_clues', []))}")
+        print("\n   ⏱️ Timeline of Events:")
+        for event in thread_data.get('timeline_events', []):
+            print(f"      - {event}")
+        print(f"\n   📝 Summary Trail: {thread_data.get('summary_trail', '')}")
+        
+    except Exception as e:
+        print(f"❌ Error analyzing thread: {e}")
+
     print("\n" + "-" * 50)
     print("🏁 Simulation Complete!")
 

@@ -78,6 +78,21 @@ class VerificationCluesInput(BaseModel):
 class VerificationQuestionsOutput(BaseModel):
     questions: List[str]
 
+class Comment(BaseModel):
+    user_id: str
+    timestamp: str
+    text: str
+
+class ThreadAnalysisInput(BaseModel):
+    item_title: str
+    comments: List[Comment]
+
+class ThreadAnalysisOutput(BaseModel):
+    likely_locations: List[str]
+    timeline_events: List[str]
+    synthesized_clues: List[str]
+    summary_trail: str
+
 @app.get("/")
 def root():
     return {"message": "AI/ML Microservice is running successfully."}
@@ -252,6 +267,61 @@ def evaluate_answers(input_data: AnswerEvaluationInput):
     except Exception as e:
         print(f"LLM Error during evaluation: {e}")
         return {"passed": False, "reason": "System error during AI evaluation."}
+
+@app.post("/analyze_thread", response_model=ThreadAnalysisOutput)
+def analyze_thread(input_data: ThreadAnalysisInput):
+    """
+    Parses an array of anonymous comments to deduce a timeline and location trail for a lost item.
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key or api_key == "your_google_gemini_api_key_here":
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured in .env file")
+
+    client = genai.Client(api_key=api_key)
+    
+    formatted_comments = ""
+    for c in input_data.comments:
+        formatted_comments += f"[{c.timestamp}] User {c.user_id}: {c.text}\n"
+
+    prompt = f"""
+    You are an AI investigator for a campus Lost & Found system.
+    A Reddit-style thread has been created for a lost item: "{input_data.item_title}".
+    
+    Here are the comments from various students:
+    {formatted_comments}
+    
+    Analyze the text and extract:
+    1. A list of exact locations mentioned where the item might be.
+    2. A chronological timeline of events mapping when it was spotted.
+    3. Any repeated/synthesized clues regarding the person who took it or its condition.
+    4. A one-sentence final summary trail (e.g. "Item was moved from Lab 10 to Library").
+    
+    Respond EXACTLY with valid JSON:
+    {{
+        "likely_locations": ["string"],
+        "timeline_events": ["string"],
+        "synthesized_clues": ["string"],
+        "summary_trail": "string"
+    }}
+    Do not wrap in markdown or include backticks. Just pure JSON.
+    """
+
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
+        text_resp = response.text.replace("```json", "").replace("```", "").replace("\n", "").strip()
+        data = json.loads(text_resp)
+        return ThreadAnalysisOutput(**data)
+    except Exception as e:
+        print(f"LLM Error during thread analysis: {e}")
+        return ThreadAnalysisOutput(
+            likely_locations=["Unknown"],
+            timeline_events=["Could not parse timeline from comments."],
+            synthesized_clues=["No concrete clues synthesized."],
+            summary_trail="Analysis failed, refer to manual comments."
+        )
 
 if __name__ == "__main__":
     import uvicorn
