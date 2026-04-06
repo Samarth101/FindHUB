@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { MapPin, Calendar, Tag, Palette, Type, FileText, ImagePlus, Send, Info } from 'lucide-react'
 import Button from '../../components/common/Button'
 import ImageUpload from '../../components/common/ImageUpload'
+import LocationPicker from '../../components/common/LocationPicker'
 import { RADIUS, CATEGORIES } from '../../utils/constants'
 import toast from 'react-hot-toast'
 import api from '../../api/http'
@@ -15,7 +16,8 @@ export default function ReportLost() {
   const [showThreadPrompt, setShowThreadPrompt] = useState(false)
   const [form, setForm] = useState({
     category: '', itemName: '', brand: '', color: '', description: '',
-    distinguishingFeatures: '', location: '', date: '', images: []
+    distinguishingFeatures: '', location: '', date: '', images: [],
+    locationCoords: { lat: 18.5204, lng: 73.8567 }
   })
 
   const set = (e) => setForm({ ...form, [e.target.name]: e.target.value })
@@ -25,10 +27,6 @@ export default function ReportLost() {
 
     if (!form.category || !form.itemName || !form.location || !form.date) {
       return toast.error('Please fill in all required fields!')
-    }
-
-    if (!form.images || form.images.length === 0) {
-      return toast.error('Please upload at least one image!')
     }
 
     setLoading(true)
@@ -131,6 +129,10 @@ export default function ReportLost() {
 
           <div className="space-y-4">
             <div>
+              <label className="font-body text-base text-pencil/70 mb-2 block">Pin precise location on map *</label>
+              <LocationPicker value={form.locationCoords} onChange={(coords) => setForm({ ...form, locationCoords: coords })} />
+            </div>
+            <div>
               <label className="font-body text-base text-pencil/70 mb-1 block">Last seen location *</label>
               <div className="relative">
                 <MapPin size={18} strokeWidth={2.5} className="absolute left-3 top-1/2 -translate-y-1/2 text-pencil/40" />
@@ -148,7 +150,7 @@ export default function ReportLost() {
         </div>
 
         <div className="relative bg-white border-2 border-dashed border-muted p-6" style={{ borderRadius: RADIUS.wobblyMd }}>
-          <h2 className="font-heading text-2xl font-bold mb-4 flex items-center gap-2"><ImagePlus size={22} strokeWidth={2.5} /> Images</h2>
+          <h2 className="font-heading text-2xl font-bold mb-4 flex items-center gap-2"><ImagePlus size={22} strokeWidth={2.5} /> Images (Optional)</h2>
           <ImageUpload images={form.images} onChange={(imgs) => setForm({ ...form, images: imgs })} max={3} />
         </div>
 
