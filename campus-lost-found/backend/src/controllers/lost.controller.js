@@ -8,12 +8,12 @@ const notificationService = require('../services/notification.service');
 async function createLostReport(req, res, next) {
   try {
     const { category, itemName, brand, color, description,
-            distinguishingFeatures, location, date } = req.body;
+            distinguishingFeatures, location, locationCoords, date } = req.body;
 
     const report = await LostReport.create({
       student: req.user._id,
       category, itemName, brand, color, description,
-      distinguishingFeatures, location,
+      distinguishingFeatures, location, locationCoords,
       dateLost: new Date(date),
     });
 

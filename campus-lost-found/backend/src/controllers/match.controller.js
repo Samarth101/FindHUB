@@ -31,6 +31,38 @@ async function getMyMatches(req, res, next) {
 }
 
 /**
+ * GET /api/matches/:id — get a specific match for the student
+ * Generates AI verification questions on the fly.
+ */
+async function getMatchById(req, res, next) {
+  try {
+    const match = await Match.findById(req.params.id)
+      .populate('lostReport')
+      .populate('foundItem');
+
+    if (!match) return res.status(404).json({ message: 'Match not found.' });
+
+    // Privacy check
+    if (!match.lostReport.student.equals(req.user._id)) {
+      return res.status(403).json({ message: 'Forbidden.' });
+    }
+
+    // Generate questions using AI service
+    const questions = await verifyService.generateQuestions(
+      match.foundItem.category,
+      match.foundItem.secretClues
+    );
+
+    res.json({ 
+      match: sanitizeMatchForStudent(match), 
+      questions 
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * GET /api/matches  — admin: full match list with both sides
  */
 async function getAllMatches(req, res, next) {
@@ -114,10 +146,14 @@ async function submitClaim(req, res, next) {
     if (existing) return res.status(409).json({ message: 'Claim already submitted.' });
 
     // Grade answers against secret clues using ML
-    const { verifyScore, scoredAnswers, status } = await verifyService.gradeAnswers(
+    const { verifyScore, scoredAnswers, status, aiReason } = await verifyService.gradeAnswers(
+      match.foundItem.category,
       answers,
       match.foundItem.secretClues
     );
+
+    match.status = status; // Auto-update match status based on claim result
+    await match.save();
 
     const claim = await Claim.create({
       match:       match._id,
@@ -127,6 +163,7 @@ async function submitClaim(req, res, next) {
       answers:     scoredAnswers,
       verifyScore,
       status,
+      reviewNote:  aiReason || '',
     });
 
     // Notify admins if needs review
@@ -145,4 +182,10 @@ async function submitClaim(req, res, next) {
   }
 }
 
-module.exports = { getMyMatches, getAllMatches, reviewMatch, submitClaim };
+module.exports = { 
+  getMyMatches, 
+  getMatchById,
+  getAllMatches, 
+  reviewMatch, 
+  submitClaim 
+};

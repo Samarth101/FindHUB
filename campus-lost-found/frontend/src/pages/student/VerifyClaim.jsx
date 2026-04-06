@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ShieldCheck, Send, Loader2, Lock, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { ShieldCheck, Send, Loader2, Lock, CheckCircle, Clock, XCircle, MapPin } from 'lucide-react';
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import Button from '../../components/common/Button';
 import { RADIUS } from '../../utils/constants';
 import api from '../../api/http';
 import toast from 'react-hot-toast';
+
+const mapContainerStyle = { width: '100%', height: '200px' };
 
 export default function VerifyClaim() {
   const { id } = useParams(); // match ID
@@ -16,21 +19,21 @@ export default function VerifyClaim() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
 
-  // Attempt to get match details — questions will be derived from clue count
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+  });
+
   useEffect(() => {
-    api.get(`/matches/mine`)
+    api.get(`/matches/${id}`)
       .then(res => {
-        const m = (res.data.matches || []).find(match => match._id === id);
-        setMatch(m || null);
-        // Generate generic questions (the real verification happens server-side)
-        const qs = [
-          { id: 'q1', text: 'Describe a unique feature or mark on this item that only the owner would know.' },
-          { id: 'q2', text: 'What accessories or identifying details were with this item?' },
-          { id: 'q3', text: 'Describe where exactly you last had this item and what you were doing.' },
-        ];
-        setQuestions(qs);
+        setMatch(res.data.match);
+        setQuestions(res.data.questions || []);
       })
-      .catch(err => console.error(err))
+      .catch(err => {
+        toast.error('Failed to load match details.');
+        console.error(err);
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -40,10 +43,10 @@ export default function VerifyClaim() {
       questionId: q.id,
       question: q.text,
       answer: answers[q.id] || '',
-    })).filter(a => a.answer.trim());
+    }));
 
-    if (answerList.length === 0) {
-      return toast.error('Please answer at least one question.');
+    if (answerList.some(a => !a.answer.trim())) {
+      return toast.error('Please answer all questions for better AI analysis.');
     }
 
     setSubmitting(true);
@@ -61,7 +64,7 @@ export default function VerifyClaim() {
     }
   };
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 size={32} className="animate-spin text-[#2d5da1]" /></div>;
+  if (loading) return <div className="flex justify-center py-20"><Loader2 size={32} className="animate-spin text-accent" /></div>;
 
   if (result) {
     const configs = {
@@ -73,7 +76,7 @@ export default function VerifyClaim() {
     const Icon = cfg.icon;
     return (
       <div className="max-w-md mx-auto py-12">
-        <div className={`border-2 p-8 text-center ${cfg.color}`} style={{ borderRadius: RADIUS.wobbly }}>
+        <div className={`border-2 p-8 text-center ${cfg.color} shadow-hard-sm`} style={{ borderRadius: RADIUS.wobbly }}>
           <Icon size={56} className="mx-auto mb-4" />
           <h2 className="font-heading text-3xl font-bold mb-2">{cfg.title}</h2>
           <p className="font-body text-lg mb-6">{cfg.desc}</p>
@@ -83,34 +86,56 @@ export default function VerifyClaim() {
     );
   }
 
+  const lostCoords = match?.lostReport?.locationCoords || { lat: 0, lng: 0 };
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="font-heading text-4xl font-bold dark:text-white">Verify Ownership<span className="text-[#ff4d4d]">.</span></h1>
-      <p className="font-body text-lg text-gray-500">
-        {match ? `Verifying match for: ${match.lostReport?.itemName || 'your item'}` : 'Answer the questions below to prove you are the owner.'}
-      </p>
+      <h1 className="font-heading text-4xl font-bold">Verify Ownership<span className="text-accent">.</span></h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <p className="font-body text-lg text-pencil/70">
+            {match ? `Verifying match for: ${match.lostReport?.itemName}` : 'Loading...'}
+          </p>
+          <div className="bg-blue-50 border-2 border-blue-200 p-4 flex items-start gap-3" style={{ borderRadius: RADIUS.wobblySm }}>
+            <Lock size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
+            <p className="font-body text-sm text-blue-800">The AI generated these questions based on the finder's clues. Prove you are the owner by answering them accurately.</p>
+          </div>
+        </div>
 
-      <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-[#2d5da1] p-4 flex items-start gap-3" style={{ borderRadius: RADIUS.wobblySm }}>
-        <Lock size={20} className="text-[#2d5da1] flex-shrink-0 mt-0.5" />
-        <p className="font-body text-sm text-gray-600 dark:text-gray-300">Your answers are compared against secret clues submitted by the finder. You must answer accurately to pass.</p>
+        {isLoaded && lostCoords.lat !== 0 && (
+          <div className="border-2 border-pencil overflow-hidden shadow-hard-xs" style={{ borderRadius: RADIUS.wobblySm }}>
+            <div className="bg-pencil text-white text-[10px] px-2 py-1 flex items-center gap-1 font-bold">
+              <MapPin size={10} /> YOUR LOST LOCATION
+            </div>
+            <GoogleMap
+              mapContainerStyle={mapContainerStyle}
+              center={lostCoords}
+              zoom={15}
+              options={{ disableDefaultUI: true, draggable: false }}
+            >
+              <Marker position={lostCoords} />
+            </GoogleMap>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {questions.map((q, i) => (
-          <div key={q.id} className="bg-white dark:bg-[#222] border-2 border-[#2d2d2d] p-5 shadow-[2px_2px_0px_#2d2d2d]" style={{ borderRadius: RADIUS.wobblySm }}>
-            <p className="font-heading text-lg font-bold mb-2 dark:text-white">Q{i + 1}: {q.text}</p>
+          <div key={q.id} className="bg-white border-2 border-pencil p-5 shadow-hard-sm" style={{ borderRadius: RADIUS.wobblySm }}>
+            <p className="font-heading text-xl font-bold mb-2 pt-2">Q{i + 1}: {q.text} ?</p>
             <textarea
               value={answers[q.id] || ''}
               onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })}
               rows={3}
-              placeholder="Your answer..."
-              className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-[#333] dark:text-white font-body resize-none"
+              placeholder="Type your answer here..."
+              className="w-full p-4 border-2 border-pencil bg-white font-body text-lg placeholder:text-pencil/30 focus-hand resize-none"
               style={{ borderRadius: RADIUS.wobblySm }}
             />
           </div>
         ))}
         <Button type="submit" className="w-full" size="lg" disabled={submitting}>
-          {submitting ? <><Loader2 size={20} className="animate-spin" /> Verifying...</> : <><ShieldCheck size={20} /> Submit Verification</>}
+          {submitting ? <><Loader2 size={20} className="animate-spin" /> Analyzing...</> : <><ShieldCheck size={20} strokeWidth={3} /> Submit for AI Analysis</>}
         </Button>
       </form>
     </div>

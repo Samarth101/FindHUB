@@ -8,12 +8,12 @@ const matchSchema = new mongoose.Schema({
   score: { type: Number, required: true, min: 0, max: 1 },
 
   /** Match lifecycle:
-   *  pending_verify -> verified | rejected | manual_review
+   *  pending -> approved | rejected | review | closed
    */
   status: {
     type: String,
-    enum: ['pending_verify', 'verified', 'rejected', 'manual_review', 'closed'],
-    default: 'pending_verify',
+    enum: ['pending', 'approved', 'rejected', 'review', 'closed'],
+    default: 'pending',
   },
 
   /** Admin who manually reviewed (if applicable) */

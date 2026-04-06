@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Calendar, Tag, Palette, Type, ImagePlus, Send, EyeOff, Lock, Key } from 'lucide-react';
 import Button from '../../components/common/Button';
+import LocationPicker from '../../components/common/LocationPicker';
 import ImageUpload from '../../components/common/ImageUpload';
 import { RADIUS, CATEGORIES } from '../../utils/constants';
 import toast from 'react-hot-toast';
@@ -17,6 +18,7 @@ export default function ReportFound() {
     category: '', itemName: '', brand: '', color: '', description: '',
     location: '', date: '', images: [],
     secretClues: [''],
+    locationCoords: { lat: 18.5204, lng: 73.8567 }
   });
 
   const set = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -146,7 +148,15 @@ export default function ReportFound() {
           <h2 className="font-heading text-2xl font-bold mb-4">Where and When</h2>
           <div className="space-y-4">
             <div>
-              <label className="font-body text-base text-pencil/70 mb-1 block">Found at *</label>
+              <label className="font-body text-base text-pencil/70 mb-2 block">Pin precise location on map *</label>
+              <LocationPicker 
+                value={form.locationCoords} 
+                onChange={(coords) => setForm({ ...form, locationCoords: coords })} 
+              />
+            </div>
+
+            <div>
+              <label className="font-body text-base text-pencil/70 mb-1 block">Location Name / Building *</label>
               <div className="relative">
                 <MapPin size={18} strokeWidth={2.5} className="absolute left-3 top-1/2 -translate-y-1/2 text-pencil/40" />
                 <input type="text" name="location" value={form.location} onChange={set} placeholder="e.g. Canteen counter" className={inputCls} style={{ borderRadius: RADIUS.wobblySm }} />

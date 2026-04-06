@@ -10,14 +10,14 @@ async function createFoundItem(req, res, next) {
   try {
     const {
       category, itemName, brand, color, description,
-      location, date, secretClues, submitterAnonymous,
+      location, locationCoords, date, secretClues, submitterAnonymous,
     } = req.body;
 
     const item = await FoundItem.create({
       submittedBy:  req.user.role === 'admin' ? null : req.user._id,
       intakeAdmin:  req.user.role === 'admin' ? req.user._id : null,
       submitterAnonymous: !!submitterAnonymous,
-      category, itemName, brand, color, description, location,
+      category, itemName, brand, color, description, location, locationCoords,
       dateFound: new Date(date),
       secretClues: secretClues || [],
     });

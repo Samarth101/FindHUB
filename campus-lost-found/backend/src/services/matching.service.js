@@ -64,108 +64,155 @@ function foundItemText(item) {
 
 /**
  * Trigger matching when a NEW LOST REPORT is filed.
- * Scans all unmatched found items and creates Match records.
+ * Scans all available found items using the AI Match Engine.
  */
 async function triggerMatchForLost(lostReportId) {
   const report = await LostReport.findById(lostReportId);
   if (!report) return;
 
   const foundItems = await FoundItem.find({ status: 'unmatched', isDeleted: false });
-  const reportText = lostReportText(report);
+  if (foundItems.length === 0) return 0;
 
-  const newMatches = [];
+  // Prepare input for AI Match Engine
+  const payload = {
+    found_item: null, // We'll swap this in the loop logic below or just call AI for each pair
+    lost_items: [{
+      lost_item_id: report._id.toString(),
+      description: report.description,
+      category: report.category,
+      color: report.color,
+      brand: report.brand,
+      latitude: report.locationCoords?.lat,
+      longitude: report.locationCoords?.lng,
+    }]
+  };
+
+  let matchCount = 0;
 
   for (const item of foundItems) {
-    // Same category filter (fast pre-filter)
-    if (report.category !== item.category) continue;
+    try {
+      const response = await axios.post(`${mlServiceUrl}/match_items`, {
+        found_item: {
+          found_item_id: item._id.toString(),
+          description: item.description,
+          category: item.category,
+          color: item.color,
+          brand: item.brand,
+          latitude: item.locationCoords?.lat,
+          longitude: item.locationCoords?.lng,
+        },
+        lost_items: payload.lost_items
+      });
 
-    const itemText = foundItemText(item);
-    const score = await getSimilarity(reportText, itemText);
+      const aiMatch = response.data.matches?.[0];
+      if (aiMatch && aiMatch.match_score >= MATCH_THRESHOLD) {
+        const score = aiMatch.match_score;
+        const existing = await Match.findOne({ lostReport: report._id, foundItem: item._id });
+        if (!existing) {
+          const match = await Match.create({
+            lostReport: report._id,
+            foundItem:  item._id,
+            score,
+            status: 'pending_verify',
+          });
+          matchCount++;
 
-    if (score >= MATCH_THRESHOLD) {
-      // Upsert — avoid duplicates if job runs twice
-      const existing = await Match.findOne({ lostReport: report._id, foundItem: item._id });
-      if (!existing) {
-        const match = await Match.create({
-          lostReport: report._id,
-          foundItem:  item._id,
-          score,
-          status: 'pending_verify',
-        });
-        newMatches.push({ match, item, score });
-
-        // Update item status
-        if (item.status === 'unmatched') {
           item.status = 'matched';
           await item.save();
+
+          if (score >= AUTO_NOTIFY_THRESHOLD) {
+            await notifService.send({
+              recipient: report.student,
+              type: 'match',
+              title: 'Potential match found!',
+              body:  `We found a ${Math.round(score * 100)}% match for your ${report.itemName}. Verify ownership now.`,
+              meta:  { matchId: match._id },
+            });
+          }
         }
       }
+    } catch (err) {
+      console.error('[ML] Match error for item:', item._id, err.message);
     }
   }
 
-  if (newMatches.length > 0) {
-    // Update report status
+  if (matchCount > 0) {
     report.status = 'matched';
     await report.save();
-
-    // Notify student of best match
-    const best = newMatches.sort((a, b) => b.score - a.score)[0];
-    if (best.score >= AUTO_NOTIFY_THRESHOLD) {
-      await notifService.send({
-        recipient: report.student,
-        type: 'match',
-        title: 'Potential match found!',
-        body:  `We found a ${Math.round(best.score * 100)}% match for your ${report.itemName}. Verify ownership now.`,
-        meta:  { matchId: best.match._id },
-      });
-    }
   }
 
-  return newMatches.length;
+  return matchCount;
 }
 
 /**
  * Trigger matching when a NEW FOUND ITEM is added.
- * Scans all searching lost reports.
  */
 async function triggerMatchForFound(foundItemId) {
   const item = await FoundItem.findById(foundItemId);
   if (!item) return;
 
-  const reports = await LostReport.find({ status: 'searching', isDeleted: false });
-  const itemText = foundItemText(item);
+  const searchingReports = await LostReport.find({ status: 'searching', isDeleted: false });
+  if (searchingReports.length === 0) return;
 
-  for (const report of reports) {
-    if (report.category !== item.category) continue;
+  try {
+    const payload = {
+      found_item: {
+        found_item_id: item._id.toString(),
+        description: item.description,
+        category: item.category,
+        color: item.color,
+        brand: item.brand,
+        latitude: item.locationCoords?.lat,
+        longitude: item.locationCoords?.lng,
+      },
+      lost_items: searchingReports.map(r => ({
+        lost_item_id: r._id.toString(),
+        description: r.description,
+        category: r.category,
+        color: r.color,
+        brand: r.brand,
+        latitude: r.locationCoords?.lat,
+        longitude: r.locationCoords?.lng,
+      }))
+    };
 
-    const reportText = lostReportText(report);
-    const score = await getSimilarity(reportText, itemText);
+    const { data } = await axios.post(`${mlServiceUrl}/match_items`, payload);
+    
+    for (const aiMatch of data.matches || []) {
+      if (aiMatch.match_score >= MATCH_THRESHOLD) {
+        const report = searchingReports.find(r => r._id.toString() === aiMatch.lost_item_id);
+        if (!report) continue;
 
-    if (score >= MATCH_THRESHOLD) {
-      const existing = await Match.findOne({ lostReport: report._id, foundItem: item._id });
-      if (!existing) {
-        const match = await Match.create({
-          lostReport: report._id,
-          foundItem:  item._id,
-          score,
-          status: 'pending_verify',
-        });
-
-        report.status = 'matched';
-        await report.save();
-
-        if (score >= AUTO_NOTIFY_THRESHOLD) {
-          await notifService.send({
-            recipient: report.student,
-            type: 'match',
-            title: 'Potential match found!',
-            body:  `We found a ${Math.round(score * 100)}% match for your ${report.itemName}. Verify ownership now.`,
-            meta:  { matchId: match._id },
+        const existing = await Match.findOne({ lostReport: report._id, foundItem: item._id });
+        if (!existing) {
+          const match = await Match.create({
+            lostReport: report._id,
+            foundItem:  item._id,
+            score: aiMatch.match_score,
+            status: 'pending_verify',
           });
+
+          report.status = 'matched';
+          await report.save();
+
+          item.status = 'matched';
+          await item.save();
+
+          if (aiMatch.match_score >= AUTO_NOTIFY_THRESHOLD) {
+            await notifService.send({
+              recipient: report.student,
+              type: 'match',
+              title: 'Potential match found!',
+              body:  `We found a ${Math.round(aiMatch.match_score * 100)}% match for your ${report.itemName}. Verify ownership now.`,
+              meta:  { matchId: match._id },
+            });
+          }
         }
       }
     }
+  } catch (err) {
+    console.error('[ML] Batch match error:', err.message);
   }
 }
 
-module.exports = { triggerMatchForLost, triggerMatchForFound, getSimilarity };
+module.exports = { triggerMatchForLost, triggerMatchForFound };

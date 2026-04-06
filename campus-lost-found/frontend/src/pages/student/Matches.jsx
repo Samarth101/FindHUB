@@ -8,10 +8,10 @@ import { timeAgo } from '../../utils/formatDate';
 import api from '../../api/http';
 
 const statusConfig = {
-  pending_verify: { variant: 'warning', label: 'Awaiting verification', icon: Clock },
-  pending:        { variant: 'warning', label: 'Awaiting verification', icon: Clock },
-  verified:       { variant: 'success', label: 'Verified',              icon: ShieldCheck },
-  rejected:       { variant: 'accent',  label: 'Not a match',           icon: AlertCircle },
+  pending:  { variant: 'warning', label: 'Awaiting verification', icon: Clock },
+  approved: { variant: 'success', label: 'Verified',              icon: ShieldCheck },
+  rejected: { variant: 'accent',  label: 'Not a match',           icon: AlertCircle },
+  review:   { variant: 'warning', label: 'Under AI Review',       icon: Clock },
 };
 
 function ScoreBar({ score }) {
@@ -97,14 +97,14 @@ export default function Matches() {
                       <StatusIcon size={14} className="inline mr-1" />
                       {cfg.label}
                     </Badge>
-                    {(match.status === 'pending' || match.status === 'pending_verify') && (
+                    {(match.status === 'pending' || match.status === 'review') && (
                       <Link to={`/student/verify/${match._id}`}>
                         <Button size="sm" variant="accent">
                           Verify now <ArrowRight size={14} strokeWidth={3} />
                         </Button>
                       </Link>
                     )}
-                    {match.status === 'verified' && (
+                    {match.status === 'approved' && (
                       <Link to="/student/chat">
                         <Button size="sm">Open chat</Button>
                       </Link>

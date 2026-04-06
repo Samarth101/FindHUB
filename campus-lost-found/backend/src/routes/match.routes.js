@@ -8,6 +8,9 @@ const limits = require('../middleware/rateLimiter');
 // Student: view own matches (no found details)
 router.get('/mine', authenticate, ctrl.getMyMatches);
 
+// Student: get a specific match with AI questions
+router.get('/:id', authenticate, authorize('student'), ctrl.getMatchById);
+
 // Admin: full list
 router.get('/', authenticate, authorize('admin'), ctrl.getAllMatches);
 
