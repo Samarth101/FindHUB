@@ -16,7 +16,6 @@ export default function Profile() {
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({ lost: 0, found: 0, returned: 0 });
 
-  // Populate form from real user context
   useEffect(() => {
     if (user) {
       setForm({
@@ -32,7 +31,6 @@ export default function Profile() {
     }
   }, [user]);
 
-  // Also fetch live counts from backend
   useEffect(() => {
     api.get('/lost/mine', { params: { limit: 0 } })
       .then(res => setStats(prev => ({ ...prev, lost: res.data.total || 0 })))
@@ -49,13 +47,12 @@ export default function Profile() {
         name: form.name,
         phone: form.phone,
       });
-      // Update global auth context with the fresh user data
       if (res.data.user) {
         setUser(res.data.user);
       }
       toast.success('Profile updated successfully!');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update profile.');
+      toast.error('Failed to update profile.');
     } finally {
       setLoading(false);
     }
@@ -65,7 +62,7 @@ export default function Profile() {
 
   return (
     <div className="max-w-lg mx-auto space-y-8">
-      <h1 className="font-heading text-4xl md:text-5xl font-bold dark:text-white">Profile<span className="text-[#ff4d4d]">.</span></h1>
+      <h1 className="font-heading text-4xl md:text-5xl font-bold">Profile<span className="text-[#ff4d4d]">.</span></h1>
 
       {/* Avatar */}
       <div className="flex flex-col items-center">
@@ -83,7 +80,7 @@ export default function Profile() {
             <Camera size={14} strokeWidth={3} />
           </button>
         </div>
-        <p className="font-heading text-2xl font-bold mt-3 dark:text-white">{form.name || 'No name set'}</p>
+        <p className="font-heading text-2xl font-bold mt-3">{form.name || 'No name set'}</p>
         <p className="font-body text-base text-gray-500 capitalize">{user?.role || 'student'}</p>
       </div>
 
@@ -122,8 +119,6 @@ export default function Profile() {
           {loading ? <><Loader2 size={20} className="animate-spin" /> Saving...</> : <><Save size={20} strokeWidth={3} /> Save changes</>}
         </Button>
       </form>
-
-      {/* Activity stats - from real data */}
       <div className="relative bg-gray-50 dark:bg-[#222] border-2 border-dashed border-gray-300 dark:border-gray-600 p-6" style={{ borderRadius: RADIUS.wobblyMd }}>
         <h3 className="font-heading text-xl font-bold mb-3 dark:text-white">Your Activity</h3>
         <div className="grid grid-cols-3 gap-4 text-center">

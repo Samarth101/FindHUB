@@ -1,53 +1,50 @@
-import { useState, useRef } from 'react';
-import { ImagePlus, X, Loader2 } from 'lucide-react';
-import { RADIUS } from '../../utils/constants';
-import api from '../../api/http';
-import toast from 'react-hot-toast';
+import { useState, useRef } from 'react'
+import { ImagePlus, X, Loader2 } from 'lucide-react'
+import { RADIUS } from '../../utils/constants'
+import api from '../../api/http'
+import toast from 'react-hot-toast'
 
 export default function ImageUpload({ images = [], onChange, max = 3 }) {
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef(null);
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef(null)
 
   const handleFiles = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
 
-    const remaining = max - images.length;
-    if (remaining <= 0) return toast.error(`Max ${max} images allowed`);
-    const batch = files.slice(0, remaining);
+    const remaining = max - images.length
+    if (remaining <= 0) return toast.error(`Max ${max} images allowed`)
+    const batch = files.slice(0, remaining)
 
-    const formData = new FormData();
-    batch.forEach(f => formData.append('images', f));
+    const formData = new FormData()
+    batch.forEach(f => formData.append('images', f))
 
-    setUploading(true);
+    setUploading(true)
     try {
-      const res = await api.post('/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      const urls = res.data.urls || [];
-      onChange([...images, ...urls]);
-      toast.success(`${urls.length} image(s) uploaded`);
+      const res = await api.post('/upload', formData)
+      const urls = res.data.urls || []
+      onChange([...images, ...urls])
+      toast.success(`${urls.length} image(s) uploaded`)
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Upload failed');
+      toast.error(err.response?.data?.message || 'Upload failed')
     } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = '';
+      setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
     }
-  };
+  }
 
   const removeImage = (idx) => {
-    onChange(images.filter((_, i) => i !== idx));
-  };
+    onChange(images.filter((_, i) => i !== idx))
+  }
 
   return (
     <div>
-      {/* Preview thumbnails */}
       {images.length > 0 && (
         <div className="flex gap-3 flex-wrap mb-3">
           {images.map((url, i) => (
             <div key={i} className="relative group">
               <img
-                src={`http://localhost:5000${url}`}
+                src={url}
                 alt={`Upload ${i + 1}`}
                 className="w-24 h-24 object-cover border-2 border-[#2d2d2d]"
                 style={{ borderRadius: RADIUS.wobblySm }}
@@ -64,7 +61,6 @@ export default function ImageUpload({ images = [], onChange, max = 3 }) {
         </div>
       )}
 
-      {/* Upload area */}
       {images.length < max && (
         <div
           onClick={() => !uploading && fileRef.current?.click()}
@@ -95,5 +91,5 @@ export default function ImageUpload({ images = [], onChange, max = 3 }) {
         className="hidden"
       />
     </div>
-  );
+  )
 }

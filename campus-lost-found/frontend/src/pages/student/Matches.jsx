@@ -1,22 +1,22 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { ShieldCheck, ArrowRight, Package, AlertCircle, Clock, Loader2 } from 'lucide-react';
-import Button from '../../components/common/Button';
-import Badge from '../../components/common/Badge';
-import { RADIUS } from '../../utils/constants';
-import { timeAgo } from '../../utils/formatDate';
-import api from '../../api/http';
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import { ShieldCheck, ArrowRight, Package, AlertCircle, Clock, Loader2 } from 'lucide-react'
+import Button from '../../components/common/Button'
+import Badge from '../../components/common/Badge'
+import { RADIUS } from '../../utils/constants'
+import { timeAgo } from '../../utils/formatDate'
+import api from '../../api/http'
 
 const statusConfig = {
   pending_verify: { variant: 'warning', label: 'Awaiting verification', icon: Clock },
-  pending:        { variant: 'warning', label: 'Awaiting verification', icon: Clock },
-  verified:       { variant: 'success', label: 'Verified',              icon: ShieldCheck },
-  rejected:       { variant: 'accent',  label: 'Not a match',           icon: AlertCircle },
-};
+  pending: { variant: 'warning', label: 'Awaiting verification', icon: Clock },
+  verified: { variant: 'success', label: 'Verified', icon: ShieldCheck },
+  rejected: { variant: 'accent', label: 'Not a match', icon: AlertCircle }
+}
 
 function ScoreBar({ score }) {
-  const pct = Math.round(score * 100);
-  const color = score >= 0.85 ? 'bg-green-500' : score >= 0.6 ? 'bg-yellow-500' : 'bg-[#ff4d4d]';
+  const pct = Math.round(score * 100)
+  const color = score >= 0.85 ? 'bg-green-500' : score >= 0.6 ? 'bg-yellow-500' : 'bg-[#ff4d4d]'
   return (
     <div className="flex items-center gap-2">
       <div className="w-24 h-3 bg-gray-200 border border-gray-300 overflow-hidden" style={{ borderRadius: '999px' }}>
@@ -24,32 +24,32 @@ function ScoreBar({ score }) {
       </div>
       <span className="font-body text-sm font-bold">{pct}%</span>
     </div>
-  );
+  )
 }
 
 export default function Matches() {
-  const [matches, setMatches] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [matches, setMatches] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     api.get('/matches/mine')
       .then(res => setMatches(res.data.matches || []))
       .catch(err => console.error('Failed to load matches:', err))
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => setLoading(false))
+  }, [])
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 size={32} className="animate-spin text-[#2d5da1]" />
       </div>
-    );
+    )
   }
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-heading text-4xl md:text-5xl font-bold dark:text-white">My Matches<span className="text-[#ff4d4d]">.</span></h1>
+        <h1 className="font-heading text-4xl md:text-5xl font-bold">My Matches<span className="text-[#ff4d4d]">.</span></h1>
         <p className="font-body text-lg text-gray-500 mt-1">Potential matches for your lost items. No found item details are shown — verify ownership to proceed.</p>
       </div>
 
@@ -70,10 +70,10 @@ export default function Matches() {
       ) : (
         <div className="space-y-4">
           {matches.map((match, i) => {
-            const cfg = statusConfig[match.status] || statusConfig.pending;
-            const StatusIcon = cfg.icon;
-            const itemName = match.lostReport?.itemName || 'Unknown Item';
-            const category = match.lostReport?.category || '';
+            const cfg = statusConfig[match.status] || statusConfig.pending
+            const StatusIcon = cfg.icon
+            const itemName = match.lostReport?.itemName || 'Unknown Item'
+            const category = match.lostReport?.category || ''
             return (
               <div
                 key={match._id}
@@ -112,10 +112,10 @@ export default function Matches() {
                   </div>
                 </div>
               </div>
-            );
+            )
           })}
         </div>
       )}
     </div>
-  );
+  )
 }
