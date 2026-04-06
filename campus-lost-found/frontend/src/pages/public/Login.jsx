@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api/http';
 import { toast } from 'react-hot-toast';
@@ -10,9 +10,9 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth(); // Updates app state and localStorage
+  const { login } = useAuth();
 
-  const handleSubmit = async (e) => {
+  const submitHandler = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -20,8 +20,8 @@ export default function Login() {
       login(res.data.token, res.data.user);
       toast.success('Welcome back!');
       navigate(res.data.user.role === 'admin' ? '/admin' : '/student');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed. Try again.');
+    } catch {
+      toast.error('Login failed. Try again.');
     } finally {
       setLoading(false);
     }
@@ -44,7 +44,7 @@ export default function Login() {
           </h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={submitHandler} className="space-y-6">
           <div>
             <label className="block text-xl font-bold text-[#2d2d2d] mb-2">Email Address</label>
             <input 

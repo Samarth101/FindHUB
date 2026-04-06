@@ -35,31 +35,44 @@ export default function ReportFound() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (loading) return;
+    e.preventDefault()
 
     if (!form.category || !form.itemName || !form.location || !form.date) {
-      return toast.error('Please fill in all required fields!');
+      return toast.error('Please fill in all required fields!')
     }
-    const validClues = form.secretClues.filter(c => c.trim());
+
+    if (!form.images || form.images.length === 0) {
+      return toast.error('Please upload at least one image!')
+    }
+
+    const validClues = form.secretClues.filter(c => c.trim())
     if (validClues.length === 0) {
-      return toast.error('Add at least one secret clue for verification!');
+      return toast.error('Add at least one secret clue for verification!')
     }
-    setLoading(true);
+
+    setLoading(true)
     try {
       await api.post('/found', {
-        ...form,
+        category: form.category,
+        itemName: form.itemName,
+        brand: form.brand,
+        color: form.color,
+        description: form.description,
+        location: form.location,
+        date: form.date,
+        images: form.images,
         submitterAnonymous: anonymous,
-        secretClues: validClues.map(text => ({ text })),
-      });
-      toast.success('Found item reported! Thank you for helping.');
-      navigate('/student/my-reports');
+        secretClues: validClues.map(c => ({ text: c.trim() }))
+      })
+
+      toast.success('Found item reported! Thank you for helping.')
+      navigate('/student/my-reports')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit');
+      toast.error('Failed to submit')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -173,7 +186,7 @@ export default function ReportFound() {
         </div>
 
         <div className="relative bg-white border-2 border-dashed border-muted p-6" style={{ borderRadius: RADIUS.wobblyMd }}>
-          <h2 className="font-heading text-2xl font-bold mb-4 flex items-center gap-2"><ImagePlus size={22} strokeWidth={2.5} /> Images (optional)</h2>
+          <h2 className="font-heading text-2xl font-bold mb-4 flex items-center gap-2"><ImagePlus size={22} strokeWidth={2.5} />Images</h2>
           <ImageUpload images={form.images} onChange={(imgs) => setForm({ ...form, images: imgs })} max={3} />
         </div>
 

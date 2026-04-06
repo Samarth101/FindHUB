@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Paper-grain dot texture on body ── */
 body {
   background-color: #fdfbf7;
   background-image: radial-gradient(#e5e0d8 1px, transparent 1px);
@@ -10,27 +9,23 @@ body {
   min-height: 100vh;
 }
 
-/* ── Reusable wobbly border-radius tokens ── */
 :root {
   --radius-wobbly:    255px 15px 225px 15px / 15px 225px 15px 255px;
   --radius-wobbly-md: 15px 225px 15px 255px / 255px 15px 225px 15px;
   --radius-wobbly-sm: 185px 10px 195px 10px / 10px 195px 10px 185px;
   --radius-blob:      60% 40% 50% 50% / 40% 60% 50% 50%;
-
   --shadow-hard:      4px 4px 0px 0px #2d2d2d;
   --shadow-hard-sm:   3px 3px 0px 0px rgba(45, 45, 45, 0.1);
   --shadow-hard-lg:   8px 8px 0px 0px #2d2d2d;
   --shadow-hard-hover:2px 2px 0px 0px #2d2d2d;
 }
 
-/* ── Wavy underline decoration ── */
 .wavy-underline {
   text-decoration: underline wavy #ff4d4d;
   text-underline-offset: 6px;
   text-decoration-thickness: 2px;
 }
 
-/* ── Tape strip decoration ── */
 .tape-strip {
   position: absolute;
   top: -10px;
@@ -43,7 +38,6 @@ body {
   z-index: 10;
 }
 
-/* ── Tack / pin decoration ── */
 .pin-tack {
   position: absolute;
   top: -8px;
@@ -58,13 +52,11 @@ body {
   z-index: 10;
 }
 
-/* ── Pressed-flat button active state ── */
 .btn-press:active {
   box-shadow: none !important;
   transform: translate(4px, 4px) !important;
 }
 
-/* ── Scrollbar styling ── */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -77,30 +69,23 @@ body {
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
 }
 
-/* ── Focus ring that matches hand-drawn style ── */
 .focus-hand:focus {
   outline: none;
   border-color: #2d5da1;
   box-shadow: 0 0 0 3px rgba(45, 93, 161, 0.2);
 }
 
-/* ── Post-it yellow background ── */
 .bg-postit {
   background-color: #fff9c4;
 }
-
-/* ── Dashed separator ── */
 .dashed-sep {
   border-top: 3px dashed #e5e0d8;
 }
-
-/* ── Selection color ── */
 ::selection {
   background: #ff4d4d;
   color: white;
 }
 
-/* ── Sidebar slide-in animation ── */
 @keyframes slideIn {
   from { transform: translateX(-100%); }
   to   { transform: translateX(0); }

@@ -1,25 +1,23 @@
 const mongoose = require('mongoose');
-const { mongoUri, nodeEnv } = require('./env');
+const { mongoUri } = require('./env');
 
 let isConnected = false;
-
 async function connectDB() {
-  if (isConnected) return;
+  if (isConnected) return
   try {
     await mongoose.connect(mongoUri, {
       serverSelectionTimeoutMS: 5000,
     });
     isConnected = true;
-    console.log('[DB] MongoDB connected:', mongoUri.replace(/\/\/.*@/, '//***@'));
+    console.log('database connected');
   } catch (err) {
-    console.error('[DB] Connection failed:', err.message);
-    if (nodeEnv === 'production') process.exit(1);
+    console.error('Database connection failed:', err.message);
     throw err;
   }
 }
 
 mongoose.connection.on('disconnected', () => {
-  console.warn('[DB] MongoDB disconnected');
+  console.warn('Database disconnected');
   isConnected = false;
 });
 

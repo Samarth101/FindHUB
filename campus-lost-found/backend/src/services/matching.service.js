@@ -1,65 +1,38 @@
-const axios      = require('axios');
-const LostReport = require('../models/LostReport');
-const FoundItem  = require('../models/FoundItem');
-const Match      = require('../models/Match');
-const Notification = require('../models/Notification');
-const notifService = require('./notification.service');
-const { mlServiceUrl } = require('../config/env');
+const axios = require('axios')
+const LostReport = require('../models/LostReport')
+const FoundItem = require('../models/FoundItem')
+const Match = require('../models/Match')
+const notifService = require('./notification.service')
+const { mlServiceUrl } = require('../config/env')
 
-// Minimum cosine similarity to create a match record
-const MATCH_THRESHOLD = 0.60;
-// Score above which a match is auto-notified to student
-const AUTO_NOTIFY_THRESHOLD = 0.80;
+const MATCH_THRESHOLD = 0.60
+const AUTO_NOTIFY_THRESHOLD = 0.80
 
-/**
- * Call ML service to get an embedding for a text.
- * Falls back to empty array if service unreachable (graceful degradation).
- */
-async function getEmbedding(text) {
-  try {
-    const { data } = await axios.post(`${mlServiceUrl}/embed`, { text }, { timeout: 10000 });
-    return data.embedding || [];
-  } catch (err) {
-    console.warn('[ML] Embedding service unreachable:', err.message);
-    return [];
-  }
-}
-
-/**
- * Call ML service to compute similarity between two texts.
- */
 async function getSimilarity(textA, textB) {
   try {
-    const { data } = await axios.post(`${mlServiceUrl}/similarity`, { textA, textB }, { timeout: 10000 });
-    return data.score || 0;
+    const { data } = await axios.post(`${mlServiceUrl}/similarity`, { textA, textB }, { timeout: 10000 })
+    return data.score || 0
   } catch {
-    // Naive fallback: Jaccard over words
-    const setA = new Set(textA.toLowerCase().split(/\s+/));
-    const setB = new Set(textB.toLowerCase().split(/\s+/));
-    const intersection = [...setA].filter(w => setB.has(w)).length;
-    return intersection / (setA.size + setB.size - intersection);
+    const setA = new Set(textA.toLowerCase().split(/\s+/))
+    const setB = new Set(textB.toLowerCase().split(/\s+/))
+    const intersection = [...setA].filter(w => setB.has(w)).length
+    return intersection / (setA.size + setB.size - intersection)
   }
 }
 
-/**
- * Build a normalized text blob from a lost report for embedding/similarity.
- */
 function lostReportText(report) {
   return [
     report.category, report.itemName, report.brand,
     report.color, report.description, report.distinguishingFeatures,
-    report.location,
-  ].filter(Boolean).join(' ');
+    report.location
+  ].filter(Boolean).join(' ')
 }
 
-/**
- * Build text blob from a found item (excludes secretClues for privacy).
- */
 function foundItemText(item) {
   return [
     item.category, item.itemName, item.brand,
-    item.color, item.description, item.location,
-  ].filter(Boolean).join(' ');
+    item.color, item.description, item.location
+  ].filter(Boolean).join(' ')
 }
 
 /**
@@ -67,8 +40,8 @@ function foundItemText(item) {
  * Scans all available found items using the AI Match Engine.
  */
 async function triggerMatchForLost(lostReportId) {
-  const report = await LostReport.findById(lostReportId);
-  if (!report) return;
+  const report = await LostReport.findById(lostReportId)
+  if (!report) return
 
   const foundItems = await FoundItem.find({ status: 'unmatched', isDeleted: false });
   if (foundItems.length === 0) return 0;
@@ -148,8 +121,8 @@ async function triggerMatchForLost(lostReportId) {
  * Trigger matching when a NEW FOUND ITEM is added.
  */
 async function triggerMatchForFound(foundItemId) {
-  const item = await FoundItem.findById(foundItemId);
-  if (!item) return;
+  const item = await FoundItem.findById(foundItemId)
+  if (!item) return
 
   const searchingReports = await LostReport.find({ status: 'searching', isDeleted: false });
   if (searchingReports.length === 0) return;

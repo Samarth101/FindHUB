@@ -1,38 +1,42 @@
-import axios from 'axios';
+import axios from 'axios'
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'http://localhost:5000/api'
 
 const api = axios.create({
   baseURL: API_BASE,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-});
+  timeout: 15000
+})
 
-// Attach JWT token to every outgoing request
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+  const token = localStorage.getItem('token')
 
-// Handle 401 globally — redirect to login
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+
+  if (!(config.data instanceof FormData)) {
+    config.headers['Content-Type'] = 'application/json'
+  } else {
+    delete config.headers['Content-Type']
+  }
+
+  return config
+})
+
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('token');
-      // Only redirect if not already on login/register
+      localStorage.removeItem('token')
       if (
         !window.location.pathname.includes('/login') &&
         !window.location.pathname.includes('/register')
       ) {
-        window.location.href = '/login';
+        window.location.href = '/login'
       }
     }
-    return Promise.reject(err);
+    return Promise.reject(err)
   }
-);
+)
 
-export default api;
+export default api

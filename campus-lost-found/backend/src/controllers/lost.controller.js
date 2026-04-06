@@ -1,10 +1,6 @@
 const LostReport = require('../models/LostReport');
 const matchingService = require('../services/matching.service');
-const notificationService = require('../services/notification.service');
 
-/**
- * POST /api/lost  — create a lost report
- */
 async function createLostReport(req, res, next) {
   try {
     const { category, itemName, brand, color, description,
@@ -19,14 +15,6 @@ async function createLostReport(req, res, next) {
 
     // Kick off async ML matching (don't await — respond immediately)
     matchingService.triggerMatchForLost(report._id).catch(console.error);
-
-    // Notify user to update recent activity
-    await notificationService.send({
-      recipient: req.user._id,
-      type: 'system',
-      title: 'Lost Report Created',
-      body: `You reported a lost ${itemName}.`
-    });
 
     res.status(201).json({ report });
   } catch (err) {

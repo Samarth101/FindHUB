@@ -1,7 +1,3 @@
-/**
- * Smart relative time formatter.
- * Returns human-readable strings like "2 minutes ago", "yesterday", "3 days ago".
- */
 export function timeAgo(date) {
   if (!date) return '';
   const now = Date.now();
@@ -21,23 +17,17 @@ export function timeAgo(date) {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-/**
- * Format a date to a readable date string.
- */
 export function formatDate(date) {
   if (!date) return '';
   const d = date instanceof Date ? date : new Date(date);
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-/**
- * Format a date to a readable date + time string.
- */
 export function formatDateTime(date) {
   if (!date) return '';
   const d = date instanceof Date ? date : new Date(date);
   return d.toLocaleString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
-  });
+  })
 }
