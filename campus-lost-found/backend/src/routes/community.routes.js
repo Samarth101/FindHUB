@@ -5,6 +5,8 @@ const LostReport = require('../models/LostReport');
 const { authenticate } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const limits = require('../middleware/rateLimiter');
+const axios = require('axios');
+const { mlServiceUrl } = require('../config/env');
 
 // GET all threads (paginated)
 router.get('/', authenticate, async (req, res, next) => {
@@ -102,6 +104,37 @@ router.post('/:threadId/replies/:replyId/vote', authenticate, async (req, res, n
     await thread.save();
     res.json({ upvotes: reply.upvotes.length, downvotes: reply.downvotes.length });
   } catch (err) { next(err); }
+});
+
+// POST analyze thread (Calls Python AI)
+router.post('/:id/analyze', authenticate, async (req, res, next) => {
+  try {
+    const thread = await CommunityThread.findById(req.params.id)
+      .populate('author', 'name')
+      .populate('replies.author', 'name');
+    
+    if (!thread || thread.isDeleted) return res.status(404).json({ message: 'Thread not found.' });
+
+    const commentsParam = thread.replies.map(r => ({
+      user_id: (r.author && r.author.name) ? r.author.name : 'Anonymous',
+      timestamp: new Date(r.createdAt || Date.now()).toISOString(),
+      text: r.text
+    }));
+
+    const { data } = await axios.post(`${mlServiceUrl}/analyze_thread`, {
+      item_title: thread.title,
+      comments: commentsParam
+    });
+
+    res.json(data);
+  } catch (err) {
+    if (err.response) {
+      console.error("ML Analysis Error:", err.response.data);
+    } else {
+      console.error("ML Analysis Error:", err.message);
+    }
+    res.status(500).json({ message: 'Error analyzing thread with AI Engine.' });
+  }
 });
 
 module.exports = router;

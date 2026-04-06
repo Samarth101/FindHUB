@@ -16,22 +16,31 @@ export default function VerifyClaim() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
 
-  // Attempt to get match details — questions will be derived from clue count
+  // Fetch match details and AI-generated verification questions
   useEffect(() => {
-    api.get(`/matches/mine`)
-      .then(res => {
-        const m = (res.data.matches || []).find(match => match._id === id);
+    const loadData = async () => {
+      try {
+        // Get match info
+        const matchRes = await api.get(`/matches/mine`);
+        const m = (matchRes.data.matches || []).find(match => match._id === id);
         setMatch(m || null);
-        // Generate generic questions (the real verification happens server-side)
-        const qs = [
+
+        // Get AI-generated questions from Python service
+        const qRes = await api.get(`/matches/${id}/questions`);
+        setQuestions(qRes.data.questions || []);
+      } catch (err) {
+        console.error('Failed to load verification data:', err);
+        // Fallback to generic questions if AI fails
+        setQuestions([
           { id: 'q1', text: 'Describe a unique feature or mark on this item that only the owner would know.' },
-          { id: 'q2', text: 'What accessories or identifying details were with this item?' },
-          { id: 'q3', text: 'Describe where exactly you last had this item and what you were doing.' },
-        ];
-        setQuestions(qs);
-      })
-      .catch(err => console.error(err))
-      .finally(() => setLoading(false));
+          { id: 'q2', text: 'What brand or model is this item?' },
+          { id: 'q3', text: 'Describe where exactly you last had this item.' },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
   }, [id]);
 
   const handleSubmit = async (e) => {

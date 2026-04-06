@@ -4,4 +4,8 @@ export const RADIUS = {
   wobblySm: '6px',
   blob: '16px',
 }
-export const CATEGORIES = ['Electronics', 'Clothing', 'Accessories', 'Other']
+export const CATEGORIES = [
+  'Electronics', 'Water Bottles', 'Keys', 'Bags & Backpacks',
+  'ID / Documents', 'Books & Notes', 'Clothing', 'Jewellery',
+  'Sports Equipment', 'Stationery', 'Other'
+]

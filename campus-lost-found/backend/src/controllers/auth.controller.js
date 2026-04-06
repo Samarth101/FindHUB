@@ -9,7 +9,8 @@ function signToken(userId, role) {
 // POST /api/auth/register
 async function register(req, res, next) {
   try {
-    const { name, email, password, phone } = req.body
+    let { name, email, password, phone } = req.body
+    email = email.toLowerCase().trim()
     const existing = await User.findOne({ email })
     if (existing) return res.status(409).json({ message: 'Email already registered.' })
     const user = new User({ name, email, passwordHash: password, phone })
@@ -24,7 +25,8 @@ async function register(req, res, next) {
 // POST /api/auth/login
 async function login(req, res, next) {
   try {
-    const { email, password } = req.body
+    let { email, password } = req.body
+    email = email.toLowerCase().trim()
     const user = await User.findOne({ email }).select('+passwordHash')
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ message: 'Invalid email or password.' })

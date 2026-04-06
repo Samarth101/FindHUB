@@ -17,6 +17,9 @@ router.patch('/:id/review', authenticate, authorize('admin'), [
   body('note').optional().isString(),
 ], validate, ctrl.reviewMatch);
 
+// Student: get AI-generated verification questions for a match
+router.get('/:id/questions', authenticate, authorize('student'), ctrl.getVerificationQuestions);
+
 // Student: submit claim (verification answers)
 router.post('/:id/claim', authenticate, authorize('student'), limits.verify, [
   body('answers').isArray({ min: 1 }).withMessage('Answers required'),
@@ -25,3 +28,4 @@ router.post('/:id/claim', authenticate, authorize('student'), limits.verify, [
 ], validate, ctrl.submitClaim);
 
 module.exports = router;
+

@@ -126,5 +126,32 @@ async function submitClaim(req, res, next) {
     next(err)
   }
 }
+async function getVerificationQuestions(req, res, next) {
+  try {
+    const match = await Match.findById(req.params.id)
+      .populate('lostReport')
+      .populate('foundItem')
 
-module.exports = { getMyMatches, getAllMatches, reviewMatch, submitClaim }
+    if (!match) return res.status(404).json({ message: 'Match not found.' })
+
+    if (!match.lostReport.student.equals(req.user._id)) {
+      return res.status(403).json({ message: 'Forbidden.' })
+    }
+
+    const secretClues = match.foundItem.secretClues || []
+    if (secretClues.length === 0) {
+      return res.json({ questions: [
+        { id: 'q1', text: 'Describe a unique feature or mark on this item that only the owner would know.' },
+        { id: 'q2', text: 'What brand or model is this item?' },
+        { id: 'q3', text: 'Describe where exactly you last had this item.' },
+      ]})
+    }
+
+    const questions = await verifyService.generateQuestions(secretClues)
+    res.json({ questions })
+  } catch (err) {
+    next(err)
+  }
+}
+
+module.exports = { getMyMatches, getAllMatches, reviewMatch, submitClaim, getVerificationQuestions }
