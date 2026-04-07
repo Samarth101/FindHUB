@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ShieldCheck, ArrowRight, Package, AlertCircle, Clock, Loader2 } from 'lucide-react'
+import { ShieldCheck, ArrowRight, Package, AlertCircle, Clock, Loader2, MessageCircle } from 'lucide-react'
 import Button from '../../components/common/Button'
 import Badge from '../../components/common/Badge'
 import { RADIUS } from '../../utils/constants'
@@ -11,6 +11,7 @@ const statusConfig = {
   pending_verify: { variant: 'warning', label: 'Awaiting verification', icon: Clock },
   pending: { variant: 'warning', label: 'Awaiting verification', icon: Clock },
   verified: { variant: 'success', label: 'Verified', icon: ShieldCheck },
+  claimed: { variant: 'success', label: 'Verified & Claimed', icon: ShieldCheck },
   rejected: { variant: 'accent', label: 'Not a match', icon: AlertCircle }
 }
 
@@ -104,9 +105,11 @@ export default function Matches() {
                         </Button>
                       </Link>
                     )}
-                    {match.status === 'verified' && (
+                    {(match.status === 'verified' || match.status === 'claimed') && (
                       <Link to="/student/chat">
-                        <Button size="sm">Open chat</Button>
+                        <Button size="sm">
+                          <MessageCircle size={14} className="mr-1" /> Open chat
+                        </Button>
                       </Link>
                     )}
                   </div>

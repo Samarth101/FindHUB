@@ -30,8 +30,8 @@ export default function Dashboard() {
 
         const totalLost = resLost.data?.total || lostReports.length
         const totalFound = foundReports.length
-        const pendingMatches = matches.filter(m => m.status === 'pending_verify' || m.status === 'pending').length
-        const verifiedMatches = matches.filter(m => m.status === 'verified').length
+        const pendingMatches = matches.filter(m => ['pending_verify', 'pending', 'manual_review'].includes(m.status)).length
+        const verifiedMatches = matches.filter(m => ['verified', 'claimed', 'returned'].includes(m.status)).length
 
         setCounts({
           lost: totalLost,

@@ -131,11 +131,31 @@ async function submitClaim(req, res, next) {
       match.verifiedAt = new Date()
       await match.save()
 
+      // Update FoundItem and LostReport status to "claimed"
+      const FoundItem = require('../models/FoundItem')
+      const LostReport = require('../models/LostReport')
+      
+      await FoundItem.findByIdAndUpdate(match.foundItem._id, { status: 'claimed' })
+      await LostReport.findByIdAndUpdate(match.lostReport._id, { status: 'claimed' })
+
+      // Close all other pending matches for this lost report
+      await Match.updateMany(
+        { 
+          lostReport: match.lostReport._id, 
+          _id: { $ne: match._id },
+          status: { $in: ['pending_verify', 'pending', 'manual_review'] }
+        },
+        { status: 'closed' }
+      )
+
       const ChatRoom = require('../models/ChatRoom')
-      // Always add both claimant and founder — even anonymous finders need chat for handover
+      // Always add both claimant and founder
       const participants = [req.user._id]
       if (match.foundItem.submittedBy) {
         participants.push(match.foundItem.submittedBy)
+      } else if (match.foundItem.intakeAdmin) {
+        // If it was an admin intake, add the admin to the chat so they can facilitate
+        participants.push(match.foundItem.intakeAdmin)
       }
 
       const roomName = match.foundItem.submitterAnonymous 
@@ -157,7 +177,15 @@ async function submitClaim(req, res, next) {
           recipient: match.foundItem.submittedBy,
           type: 'claim_approved',
           title: '🎉 Item claimed!',
-          body: `Someone verified ownership of "${match.lostReport.itemName}". A chat has been opened for handover.`,
+          body: `Someone successfully verified ownership of "${match.lostReport.itemName}". A chat has been opened for handover.`,
+          meta: { matchId: match._id, claimId: claim._id }
+        })
+      } else if (match.foundItem.intakeAdmin) {
+        await notifService.send({
+          recipient: match.foundItem.intakeAdmin,
+          type: 'claim_approved',
+          title: '📦 New Item Claimed',
+          body: `An item you checked in ("${match.lostReport.itemName}") has been verified by the owner. Please facilitate handover.`,
           meta: { matchId: match._id, claimId: claim._id }
         })
       }
