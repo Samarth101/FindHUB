@@ -59,7 +59,7 @@ export default function Notifications() {
     <div className="space-y-8">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="font-heading text-4xl md:text-5xl font-bold dark:text-white">Notifications<span className="text-[#ff4d4d]">.</span></h1>
+          <h1 className="font-heading text-3xl md:text-4xl font-bold">Notifications<span className="text-[#ff4d4d]">.</span></h1>
           <p className="font-body text-lg text-gray-500 mt-1">{unreadCount} unread</p>
         </div>
         {unreadCount > 0 && (

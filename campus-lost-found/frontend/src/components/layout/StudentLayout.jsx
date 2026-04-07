@@ -4,7 +4,7 @@ import Sidebar from './Sidebar';
 
 export default function StudentLayout({ children }) {
   return (
-    <div className="min-h-screen bg-[#fdfbf7] flex flex-col">
+    <div className="sm:h-screen bg-[#fdfbf7] flex flex-col">
       <Navbar />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
