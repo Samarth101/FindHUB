@@ -55,6 +55,11 @@ def call_gemini_with_retry(client, model, contents, max_retries=3):
                     raise e
     raise Exception("All Gemini models exhausted or inaccessible on this API key. Please check your Google AI Studio quota.")
 
+@app.get("/")
+def read_root():
+    """Health check endpoint for Render/deployment."""
+    return {"status": "online", "message": "FindHUB AI Engine is ready for requests."}
+
 @app.get("/test_gemini")
 def test_gemini():
     """Test endpoint to verify Gemini API key is working."""
