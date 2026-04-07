@@ -6,12 +6,64 @@ from sentence_transformers import SentenceTransformer, util
 import os
 import json
 import math
+import time
 from dotenv import load_dotenv
 from google import genai
 
 load_dotenv()
 
 app = FastAPI(title="Smart Campus Found & Lost - AI Engine", version="1.0.0")
+
+def get_gemini_client():
+    """Get a fresh Gemini client, re-reading .env each time so new keys take effect."""
+    load_dotenv(override=True)  # Force reload .env
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key or api_key == "your_google_gemini_api_key_here":
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured in .env file")
+    print(f"🔑 Using Gemini API key: {api_key[:8]}...{api_key[-4:]}")
+    return genai.Client(api_key=api_key)
+
+def call_gemini_with_retry(client, model, contents, max_retries=3):
+    """Call Gemini with automatic retry and model fallback on rate limit errors."""
+    
+    # Try the originally requested model, and provide fallbacks since different keys have different quotas
+    models_to_try = [model, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest']
+    # Remove duplicates while preserving order
+    models_to_try = list(dict.fromkeys(models_to_try))
+
+    for m in models_to_try:
+        for attempt in range(max_retries):
+            try:
+                print(f"🤖 Trying model: {m} (attempt {attempt+1})")
+                response = client.models.generate_content(model=m, contents=contents)
+                print(f"✅ Success with model: {m}")
+                return response
+            except Exception as e:
+                error_str = str(e)
+                # If 404 model not found, don't wait, just try next model immediately
+                if '404' in error_str or 'NOT_FOUND' in error_str:
+                    print(f"❌ Model {m} not available on this API key. Skipping.")
+                    break # Break retry loop, move to next model
+                elif '429' in error_str or 'RESOURCE_EXHAUSTED' in error_str:
+                    wait_time = (attempt + 1) * 3  # 3s, 6s, 9s
+                    print(f"⏳ Rate limited on {m} (attempt {attempt+1}/{max_retries}). Waiting {wait_time}s...")
+                    time.sleep(wait_time)
+                    if attempt == max_retries - 1:
+                        print(f"❌ Quota exhausted for {m}, trying next model...")
+                        break  # try next model
+                else:
+                    raise e
+    raise Exception("All Gemini models exhausted or inaccessible on this API key. Please check your Google AI Studio quota.")
+
+@app.get("/test_gemini")
+def test_gemini():
+    """Test endpoint to verify Gemini API key is working."""
+    try:
+        client = get_gemini_client()
+        response = call_gemini_with_retry(client, 'gemini-2.0-flash', 'Say hello in one word.')
+        return {"status": "working", "response": response.text.strip()}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
 # Global models (loaded lazily on first request to speed up server boot)
 _nlp = None
@@ -238,11 +290,7 @@ def generate_questions(input_data: VerificationCluesInput):
     """
     Transforms secret verification points into challenge questions using Gemini LLM.
     """
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key or api_key == "your_google_gemini_api_key_here":
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured in .env file")
-
-    client = genai.Client(api_key=api_key)
+    client = get_gemini_client()
     
     categoryName = input_data.category if input_data.category else "item"
     clues_str = ", ".join(input_data.clues)
@@ -263,10 +311,7 @@ def generate_questions(input_data: VerificationCluesInput):
     """
 
     try:
-        response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=prompt,
-        )
+        response = call_gemini_with_retry(client, 'gemini-2.0-flash', prompt)
         
         # Clean potential markdown from LLM output
         text_resp = response.text.replace("```json", "").replace("```", "").strip()
@@ -293,11 +338,7 @@ def evaluate_answers(input_data: AnswerEvaluationInput):
     Given the original secret clues and the claimant's answers, uses Gemini to determine 
     if the claimant accurately described the item.
     """
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key or api_key == "your_google_gemini_api_key_here":
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured in .env file")
-
-    client = genai.Client(api_key=api_key)
+    client = get_gemini_client()
     clues_str = "\n".join([f"- {c}" for c in input_data.secret_clues])
     
     # Build Q&A context if available
@@ -332,10 +373,7 @@ def evaluate_answers(input_data: AnswerEvaluationInput):
     """
 
     try:
-        response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=prompt,
-        )
+        response = call_gemini_with_retry(client, 'gemini-2.0-flash', prompt)
         text_resp = response.text.replace("```json", "").replace("```", "").replace("\n", "").strip()
         data = json.loads(text_resp)
         return {"passed": data.get("passed", False), "reason": data.get("reason", "Parsed LLM response.")}
@@ -348,11 +386,7 @@ def analyze_thread(input_data: ThreadAnalysisInput):
     """
     Parses an array of anonymous comments to deduce a timeline and location trail for a lost item.
     """
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key or api_key == "your_google_gemini_api_key_here":
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured in .env file")
-
-    client = genai.Client(api_key=api_key)
+    client = get_gemini_client()
     
     formatted_comments = ""
     for c in input_data.comments:
@@ -382,10 +416,7 @@ def analyze_thread(input_data: ThreadAnalysisInput):
     """
 
     try:
-        response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=prompt,
-        )
+        response = call_gemini_with_retry(client, 'gemini-2.0-flash', prompt)
         text_resp = response.text.replace("```json", "").replace("```", "").replace("\n", "").strip()
         data = json.loads(text_resp)
         return ThreadAnalysisOutput(**data)
