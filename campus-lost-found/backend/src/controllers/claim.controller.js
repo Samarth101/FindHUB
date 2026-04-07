@@ -1,158 +1,157 @@
-const Claim    = require('../models/Claim');
-const Match    = require('../models/Match');
-const Handover = require('../models/Handover');
-const LostReport = require('../models/LostReport');
-const FoundItem  = require('../models/FoundItem');
-const ChatRoom   = require('../models/ChatRoom');
-const notifService = require('../services/notification.service');
-const auditService = require('../services/audit.service');
+const Claim = require('../models/Claim')
+const Match = require('../models/Match')
+const Handover = require('../models/Handover')
+const LostReport = require('../models/LostReport')
+const FoundItem = require('../models/FoundItem')
+const ChatRoom = require('../models/ChatRoom')
+const notifService = require('../services/notification.service')
+const auditService = require('../services/audit.service')
+const mailer = require('../services/mailer.service')
 
-/**
- * GET /api/claims  — admin: all claims
- */
 async function getAllClaims(req, res, next) {
   try {
-    const { status, page = 1, limit = 20 } = req.query;
-    const filter = {};
-    if (status) filter.status = status;
+    const { status, page = 1, limit = 20 } = req.query
+    const filter = {}
+    if (status) filter.status = status
 
-    const total = await Claim.countDocuments(filter);
+    const total = await Claim.countDocuments(filter)
     const claims = await Claim.find(filter)
-      .populate('claimant',   'name email')
+      .populate('claimant', 'name email')
       .populate('lostReport', 'itemName category')
-      .populate('foundItem',  'itemName category')
+      .populate('foundItem', 'itemName category')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
-      .limit(Number(limit));
+      .limit(Number(limit))
 
-    res.set('X-Total-Count', total);
-    res.json({ claims, total });
+    res.set('X-Total-Count', total)
+    res.json({ claims, total })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
 
-/**
- * GET /api/claims/mine  — student's own claims
- */
 async function getMyClaims(req, res, next) {
   try {
     const claims = await Claim.find({ claimant: req.user._id })
       .populate('lostReport', 'itemName category')
-      .sort({ createdAt: -1 });
-    res.json({ claims });
+      .sort({ createdAt: -1 })
+    res.json({ claims })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
 
-/**
- * GET /api/claims/:id  — admin or owner
- */
 async function getClaimById(req, res, next) {
   try {
     const claim = await Claim.findById(req.params.id)
-      .populate('claimant',   'name email')
+      .populate('claimant', 'name email')
       .populate('lostReport', 'itemName category student')
-      .populate('foundItem',  'itemName category');
+      .populate('foundItem', 'itemName category')
 
-    if (!claim) return res.status(404).json({ message: 'Claim not found.' });
+    if (!claim) return res.status(404).json({ message: 'Claim not found.' })
 
     if (req.user.role === 'student' && !claim.claimant._id.equals(req.user._id)) {
-      return res.status(403).json({ message: 'Forbidden.' });
+      return res.status(403).json({ message: 'Forbidden.' })
     }
 
-    // Students never see the found item details or secret clues
     if (req.user.role === 'student') {
-      const safe = claim.toObject();
-      delete safe.foundItem;
-      delete safe.answers;
-      return res.json({ claim: safe });
+      const safe = claim.toObject()
+      delete safe.foundItem
+      delete safe.answers
+      return res.json({ claim: safe })
     }
 
-    res.json({ claim });
+    res.json({ claim })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
 
-/**
- * PATCH /api/claims/:id/review  — admin approve or reject
- */
 async function reviewClaim(req, res, next) {
   try {
-    const { decision, note } = req.body;  // 'approved' | 'rejected'
-    if (!['approved', 'rejected'].includes(decision)) {
-      return res.status(400).json({ message: 'Invalid decision.' });
-    }
-
     const claim = await Claim.findById(req.params.id)
       .populate('lostReport')
-      .populate('foundItem');
-    if (!claim) return res.status(404).json({ message: 'Claim not found.' });
+      .populate('foundItem')
+      .populate('claimant', 'name email')
 
-    claim.status     = decision;
-    claim.reviewedBy = req.user._id;
-    claim.reviewNote = note || '';
-    claim.resolvedAt = new Date();
-    await claim.save();
+    if (!claim) return res.status(404).json({ message: 'Claim not found.' })
 
-    const notifType = decision === 'approved' ? 'claim_approved' : 'claim_rejected';
-    const notifTitle = decision === 'approved'
-      ? '🎉 Claim approved!'
-      : 'Claim not approved';
-    const notifBody = decision === 'approved'
-      ? `Your ownership of "${claim.lostReport.itemName}" has been verified! A handover will be scheduled.`
-      : `Your claim for "${claim.lostReport.itemName}" was not approved. Contact admin for details.`;
+    const isMatch = true
+
+    claim.status = isMatch ? 'approved' : 'rejected'
+    claim.resolvedAt = new Date()
+    await claim.save()
 
     await notifService.send({
       recipient: claim.claimant,
-      type: notifType,
-      title: notifTitle,
-      body: notifBody,
-      meta: { claimId: claim._id },
-    });
+      type: isMatch ? 'claim_approved' : 'claim_rejected',
+      title: isMatch ? '🎉 Match found!' : 'No match found',
+      body: isMatch
+        ? `A match has been found for "${claim.lostReport.itemName}".`
+        : `No match found for "${claim.lostReport.itemName}".`,
+      meta: { claimId: claim._id }
+    })
 
-    // If approved, update statuses and create handover
-    if (decision === 'approved') {
-      await LostReport.findByIdAndUpdate(claim.lostReport._id, { status: 'claimed' });
-      await FoundItem.findByIdAndUpdate(claim.foundItem._id,   { status: 'claimed' });
-      await Match.findByIdAndUpdate(claim.match,               { status: 'verified' });
+    try {
+      let finder = null
 
-      // Open a chat room
-      const chatRoom = await ChatRoom.create({
-        name: `${claim.lostReport.itemName} - Handover`,
-        participants: [claim.claimant, ...(claim.foundItem.submittedBy ? [claim.foundItem.submittedBy] : [])],
-        claim:      claim._id,
-        match:      claim.match,
-        lostReport: claim.lostReport._id,
-        foundItem:  claim.foundItem._id,
-      });
+      if (isMatch) {
+        const foundItem = await FoundItem.findById(claim.foundItem._id).populate('submittedBy', 'name email')
+        if (foundItem?.submittedBy) {
+          finder = {
+            name: foundItem.submittedBy.name,
+            email: foundItem.submittedBy.email
+          }
+        }
+      }
 
-      // Create handover record
-      await Handover.create({
-        claim:      claim._id,
-        lostReport: claim.lostReport._id,
-        foundItem:  claim.foundItem._id,
-        owner:      claim.claimant,
-        finder:     claim.foundItem.submittedBy || null,
-        adminSupervised: claim.foundItem.submitterAnonymous || !claim.foundItem.submittedBy,
-        coordinatedBy:   req.user._id,
-      });
-
-      await auditService.log({
-        actor:   req.user._id,
-        action:  'Approved claim',
-        target:  `Claim:${claim._id}`,
-        details: `Approved claim for "${claim.lostReport.itemName}" by ${claim.claimant}`,
-        req,
-      });
+      await mailer.sendClaimResult({
+        user: claim.claimant,
+        item: claim.lostReport,
+        isMatch,
+        finder
+      })
+    } catch (err) {
+      console.error('Email failed:', err.message)
     }
 
-    res.json({ claim });
+    if (isMatch) {
+      await LostReport.findByIdAndUpdate(claim.lostReport._id, { status: 'claimed' })
+      await FoundItem.findByIdAndUpdate(claim.foundItem._id, { status: 'claimed' })
+      await Match.findByIdAndUpdate(claim.match, { status: 'verified' })
+
+      await ChatRoom.create({
+        name: `${claim.lostReport.itemName} - Handover`,
+        participants: [claim.claimant, ...(claim.foundItem.submittedBy ? [claim.foundItem.submittedBy] : [])],
+        claim: claim._id,
+        match: claim.match,
+        lostReport: claim.lostReport._id,
+        foundItem: claim.foundItem._id
+      })
+
+      await Handover.create({
+        claim: claim._id,
+        lostReport: claim.lostReport._id,
+        foundItem: claim.foundItem._id,
+        owner: claim.claimant,
+        finder: claim.foundItem.submittedBy || null,
+        adminSupervised: claim.foundItem.submitterAnonymous || !claim.foundItem.submittedBy,
+        coordinatedBy: req.user._id
+      })
+
+      await auditService.log({
+        actor: req.user._id,
+        action: 'Auto verified claim',
+        target: `Claim:${claim._id}`,
+        details: `Auto verified claim for "${claim.lostReport.itemName}"`,
+        req
+      })
+    }
+
+    res.json({ claim })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
 
-module.exports = { getAllClaims, getMyClaims, getClaimById, reviewClaim };
+module.exports = { getAllClaims, getMyClaims, getClaimById, reviewClaim }
