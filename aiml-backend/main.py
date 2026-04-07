@@ -264,7 +264,7 @@ def generate_questions(input_data: VerificationCluesInput):
 
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-2.0-flash',
             contents=prompt,
         )
         
@@ -333,7 +333,7 @@ def evaluate_answers(input_data: AnswerEvaluationInput):
 
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-2.0-flash',
             contents=prompt,
         )
         text_resp = response.text.replace("```json", "").replace("```", "").replace("\n", "").strip()
@@ -383,7 +383,7 @@ def analyze_thread(input_data: ThreadAnalysisInput):
 
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-2.0-flash',
             contents=prompt,
         )
         text_resp = response.text.replace("```json", "").replace("```", "").replace("\n", "").strip()
