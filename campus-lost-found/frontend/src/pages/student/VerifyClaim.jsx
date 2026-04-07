@@ -140,7 +140,7 @@ export default function VerifyClaim() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="font-heading text-4xl font-bold dark:text-white">Verify Ownership<span className="text-[#ff4d4d]">.</span></h1>
+      <h1 className="font-heading text-4xl font-bold">Verify Ownership<span className="text-[#ff4d4d]">.</span></h1>
       <p className="font-body text-lg text-gray-500">
         {match ? `Verifying match for: ${match.lostReport?.itemName || 'your item'}` : 'Answer the questions below to prove you are the owner.'}
       </p>
@@ -148,7 +148,7 @@ export default function VerifyClaim() {
 
       <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-[#2d5da1] p-4 flex items-start gap-3" style={{ borderRadius: RADIUS.wobblySm }}>
         <Lock size={20} className="text-[#2d5da1] flex-shrink-0 mt-0.5" />
-        <p className="font-body text-sm text-gray-600 dark:text-gray-300">Your answers are compared against secret clues submitted by the finder. You must answer accurately to pass.</p>
+        <p className="font-body text-sm text-gray-600">Your answers are compared against secret clues submitted by the finder. You must answer accurately to pass.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">

@@ -22,7 +22,7 @@ function ScoreBar({ score }) {
       <div className="w-24 h-3 bg-gray-200 border border-gray-300 overflow-hidden" style={{ borderRadius: '999px' }}>
         <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="font-body text-sm font-bold">{pct}%</span>
+      <span className="font-body text-sm font-bold text-gray-400">{pct}%</span>
     </div>
   )
 }
@@ -49,7 +49,7 @@ export default function Matches() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-heading text-4xl md:text-5xl font-bold">My Matches<span className="text-[#ff4d4d]">.</span></h1>
+        <h1 className="font-heading text-3xl md:text-4xl font-bold">My Matches<span className="text-[#ff4d4d]">.</span></h1>
         <p className="font-body text-lg text-gray-500 mt-1">Potential matches for your lost items. No found item details are shown — verify ownership to proceed.</p>
       </div>
 

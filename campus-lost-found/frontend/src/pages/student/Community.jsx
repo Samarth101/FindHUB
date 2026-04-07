@@ -63,7 +63,7 @@ export default function Community() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="font-heading text-4xl md:text-5xl font-bold dark:text-white">Community<span className="text-[#ff4d4d]">.</span></h1>
+          <h1 className="font-heading text-3xl md:text-4xl font-bold">Community<span className="text-[#ff4d4d]">.</span></h1>
           <p className="font-body text-lg text-gray-500 mt-1">Campus-wide threads for lost items. Share sightings and help each other!</p>
         </div>
         <Button size="md" onClick={() => setShowForm(!showForm)}>

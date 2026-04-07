@@ -33,7 +33,7 @@ export default function Handover() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-heading text-4xl font-bold dark:text-white">Handovers<span className="text-[#ff4d4d]">.</span></h1>
+        <h1 className="font-heading text-4xl font-bold">Handovers<span className="text-[#ff4d4d]">.</span></h1>
         <p className="font-body text-lg text-gray-500 mt-1">Track scheduled pickups for your items.</p>
       </div>
 

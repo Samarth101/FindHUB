@@ -68,7 +68,7 @@ export default function Chat() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <h1 className="font-heading text-4xl font-bold dark:text-white">Chat<span className="text-[#ff4d4d]">.</span></h1>
+        <h1 className="font-heading text-4xl font-bold">Chat<span className="text-[#ff4d4d]">.</span></h1>
         <span className="flex items-center gap-1 text-xs font-body text-green-500 bg-green-50 px-2 py-1 rounded-full border border-green-200">
           <RefreshCw size={10} className="animate-spin" /> Live
         </span>

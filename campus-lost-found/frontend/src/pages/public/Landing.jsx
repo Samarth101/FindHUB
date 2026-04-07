@@ -34,7 +34,11 @@ export default function Landing() {
         <p className="text-xl md:text-2xl text-gray-700 font-medium max-w-2xl mx-auto mb-10">
           The smart campus lost and found. We use AI to confidentially match lost items to found items, keeping thieves out and your stuff safe.
         </p>
-
+        <p className="text-xl md:text-3xl text-black font-medium max-w-2xl mx-auto mb-10 animate-fade-sketch">
+          <span className="inline-block animate-breath font-semibold">
+            'Coz every lost item deserve to be found.
+          </span>
+        </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
           <Link 
             to="/register" 

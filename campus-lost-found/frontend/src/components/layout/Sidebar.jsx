@@ -44,10 +44,13 @@ export default function Sidebar({ isAdmin = false }) {
 
   const sidebarContent = (onNavClick) => (
     <>
-      {/* Brand logo */}
       <div className={`flex items-center gap-2 px-2 ${collapsed ? 'justify-center' : ''}`}>
-        <div className="bg-[#ff4d4d] w-8 h-8 flex items-center justify-center border-2 border-[#2d2d2d] transform -rotate-3 flex-shrink-0" style={{ borderRadius: RADIUS.wobblySm }}>
-          <Search size={18} strokeWidth={3} className="text-white" />
+        <div className="bg-black w-8 h-8 flex items-center justify-center border-2 border-[#2d2d2d] transform -rotate-3 flex-shrink-0 overflow-hidden" style={{ borderRadius: RADIUS.wobblySm }}>
+          <img
+            src="/logo.png"
+            alt="logo"
+            className='w-full h-full'
+          />
         </div>
         {!collapsed && (
           <h1 className="text-2xl font-black tracking-wider text-[#2d2d2d]">
@@ -91,7 +94,7 @@ export default function Sidebar({ isAdmin = false }) {
       {!onNavClick && (
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="hidden lg:flex items-center justify-center gap-2 px-3 py-2 text-gray-400 hover:text-[#2d2d2d] border-2 border-transparent hover:border-gray-200 transition-all"
+          className={`hidden lg:flex items-center justify-center gap-2 text-gray-400 hover:text-[#2d2d2d] border-2 border-transparent hover:border-gray-200 transition-all ${collapsed ? "py-1" : "px-3 py-2"}`}
           style={{ borderRadius: RADIUS.wobblySm }}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
@@ -103,7 +106,7 @@ export default function Sidebar({ isAdmin = false }) {
       {!collapsed && (
         <div className="bg-[#eef3f9] border-2 border-[#2d2d2d] p-3 text-center shadow-[2px_2px_0px_#2d2d2d]" style={{ borderRadius: RADIUS.wobbly }}>
           <p className="font-bold text-[#2d2d2d] text-xs mb-1 uppercase tracking-wider">Need Help?</p>
-          <p className="text-gray-600 text-xs font-medium">Check our <NavLink to="/faq" className="text-[#2d5da1] underline decoration-2">FAQ</NavLink>.</p>
+          <p className="text-gray-600 text-xs font-medium">Check our <NavLink to="/" className="text-[#2d5da1] underline decoration-2">FAQ</NavLink>.</p>
         </div>
       )}
     </>
@@ -138,7 +141,7 @@ export default function Sidebar({ isAdmin = false }) {
 
       {/* Desktop sidebar — fixed position */}
       <aside
-        className={`hidden lg:flex flex-col gap-5 bg-[#fdfbf7] border-r-2 border-[#2d2d2d] p-5 sticky top-0 h-screen overflow-y-auto transition-all duration-200 ${collapsed ? 'w-[72px]' : 'w-64'}`}
+        className={`h-full hidden lg:flex flex-col gap-5 bg-[#fdfbf7] border-r-2 border-[#2d2d2d] p-5 sticky top-0 overflow-y-auto transition-all duration-200 ${collapsed ? 'w-[72px]' : 'w-64'}`}
       >
         {sidebarContent(null)}
       </aside>
