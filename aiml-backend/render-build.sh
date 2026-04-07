@@ -2,8 +2,14 @@
 # exit on error
 set -o errexit
 
-# Upgrade pip and install dependencies
+# Upgrade pip
 python -m pip install --upgrade pip
+
+# INSTALL CPU-ONLY PYTORCH (IMPORTANT: This saves 1.5GB+ of disk space and prevents timeouts)
+# We do this first so sentence-transformers uses this instead of the GPU version.
+python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# Install other dependencies
 python -m pip install -r requirements.txt
 
 # Download SpaCy model (Build phase)

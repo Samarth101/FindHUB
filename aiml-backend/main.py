@@ -7,12 +7,19 @@ import os
 import json
 import math
 import time
+import torch
 from dotenv import load_dotenv
 from google import genai
 
 load_dotenv()
 
 app = FastAPI(title="Smart Campus Found & Lost - AI Engine", version="1.0.0")
+
+@app.on_event("startup")
+def startup_event():
+    device = "CPU" if not torch.cuda.is_available() else "GPU"
+    print(f"🚀 FindHUB AI Engine starting in {device} mode")
+    print(f"📦 PyTorch version: {torch.__version__}")
 
 def get_gemini_client():
     """Get a fresh Gemini client, re-reading .env each time so new keys take effect."""
