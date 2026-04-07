@@ -21,7 +21,7 @@ module.exports = {
     from:   process.env.MAIL_FROM || 'FindHUB <noreply@findhub.campus>',
   },
   rateLimits: {
-    general: Number(process.env.RATE_LIMIT_GENERAL) || 100,
+    general: Number(process.env.RATE_LIMIT_GENERAL) || 500,
     auth:    Number(process.env.RATE_LIMIT_AUTH)    || 10,
     report:  Number(process.env.RATE_LIMIT_REPORT)  || 5,
     verify:  Number(process.env.RATE_LIMIT_VERIFY)  || 3,

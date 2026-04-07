@@ -18,6 +18,8 @@ const lostReportSchema = new mongoose.Schema({
   distinguishingFeatures: { type: String, trim: true, maxlength: 1000, default: '' },
 
   location:     { type: String, required: true, trim: true, maxlength: 200 },
+  latitude:     { type: Number, default: null },
+  longitude:    { type: Number, default: null },
   dateLost:     { type: Date, required: true },
   images:       [{ type: String }],   // URLs
 

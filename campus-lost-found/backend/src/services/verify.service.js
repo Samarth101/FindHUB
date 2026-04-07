@@ -30,22 +30,28 @@ async function generateQuestions(secretClues) {
 
 /**
  * Grade student answers against the found item's secretClues.
+ * Sends both questions asked and answers given for accurate comparison.
  */
 async function gradeAnswers(answers, secretClues) {
   const cluesText = secretClues.map(c => c.text);
-  const claimant_answers = answers.map(a => a.answer);
+  
+  // Build Q&A pairs so the AI can see the full context
+  const qa_pairs = answers.map(a => ({
+    question: a.question || '',
+    answer: a.answer || ''
+  }));
   
   try {
     const { data } = await axios.post(`${mlServiceUrl}/evaluate_answers`, {
       category: 'item',
       secret_clues: cluesText,
-      claimant_answers: claimant_answers
+      claimant_answers: answers.map(a => a.answer),
+      qa_pairs: qa_pairs
     });
     
     // Returns { passed: true/false, reason: "..." }
     let status = data.passed ? 'approved' : 'rejected';
     
-    // mock scoredAnswers array since MERN might expect it
     const scoredAnswers = answers.map(a => ({
         ...a,
         score: data.passed ? 1.0 : 0.0

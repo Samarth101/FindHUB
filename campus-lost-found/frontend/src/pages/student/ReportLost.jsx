@@ -13,9 +13,11 @@ export default function ReportLost() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [showThreadPrompt, setShowThreadPrompt] = useState(false)
+  const [createdReportId, setCreatedReportId] = useState(null)
   const [form, setForm] = useState({
     category: '', itemName: '', brand: '', color: '', description: '',
-    distinguishingFeatures: '', location: '', date: '', images: []
+    distinguishingFeatures: '', location: '', date: '', images: [],
+    latitude: null, longitude: null
   })
 
   const set = (e) => setForm({ ...form, [e.target.name]: e.target.value })
@@ -27,17 +29,41 @@ export default function ReportLost() {
       return toast.error('Please fill in all required fields!')
     }
 
-    if (!form.images || form.images.length === 0) {
-      return toast.error('Please upload at least one image!')
-    }
-
     setLoading(true)
     try {
-      await api.post('/lost', form)
+      const res = await api.post('/lost', form)
       toast.success('Lost item reported!')
+      setCreatedReportId(res.data.report?._id || null)
       setShowThreadPrompt(true)
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to submit report')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateThread = async () => {
+    if (!createdReportId) return navigate('/student/my-reports')
+    setLoading(true)
+    try {
+      // Auto-generate thread title and description from the lost report
+      const title = `Lost ${form.category}: ${form.itemName} near ${form.location || 'campus'}`
+      const description = [
+        `I lost my ${form.itemName} (${form.category}) around ${form.location || 'campus'} on ${form.date}.`,
+        form.color ? `Color: ${form.color}.` : '',
+        form.distinguishingFeatures ? `Details: ${form.distinguishingFeatures}` : '',
+        'If anyone has seen it, please reply here!'
+      ].filter(Boolean).join(' ')
+
+      await api.post('/community', {
+        lostReportId: createdReportId,
+        title: title.slice(0, 160),
+        description: description.slice(0, 1000)
+      })
+      toast.success('Community thread created!')
+      navigate('/student/community')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create thread')
     } finally {
       setLoading(false)
     }
@@ -57,7 +83,9 @@ export default function ReportLost() {
             Only vague, non-identifying details will be shared publicly. No brand, model, or images.
           </p>
           <div className="flex gap-4 justify-center">
-            <Button variant="accent" onClick={() => navigate('/student/community')}>Yes, start thread</Button>
+            <Button variant="accent" onClick={handleCreateThread} disabled={loading}>
+              {loading ? 'Creating...' : 'Yes, start thread'}
+            </Button>
             <Button variant="ghost" onClick={() => navigate('/student/my-reports')}>No, skip</Button>
           </div>
         </div>
@@ -136,6 +164,22 @@ export default function ReportLost() {
                 <MapPin size={18} strokeWidth={2.5} className="absolute left-3 top-1/2 -translate-y-1/2 text-pencil/40" />
                 <input type="text" name="location" value={form.location} onChange={set} placeholder="e.g. Library 2nd floor, Lab 10" className={inputCls} style={{ borderRadius: RADIUS.wobblySm }} />
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!navigator.geolocation) return toast.error('GPS not supported on this browser');
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      setForm(f => ({ ...f, latitude: pos.coords.latitude, longitude: pos.coords.longitude }));
+                      toast.success(`GPS tagged: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+                    },
+                    () => toast.error('Location permission denied')
+                  );
+                }}
+                className="mt-2 flex items-center gap-1 font-body text-sm text-[#2d5da1] hover:underline"
+              >
+                <MapPin size={14} /> {form.latitude ? `📍 Tagged (${form.latitude.toFixed(4)}, ${form.longitude.toFixed(4)})` : 'Tag my GPS location'}
+              </button>
             </div>
             <div>
               <label className="font-body text-base text-pencil/70 mb-1 block">Date lost *</label>

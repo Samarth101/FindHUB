@@ -12,7 +12,9 @@ const foundItemSchema = new mongoose.Schema({
   brand:       { type: String, trim: true, default: '' },
   color:       { type: String, trim: true, default: '' },
   description: { type: String, trim: true, maxlength: 1000, default: '' },
-  location:    { type: String, required: true, trim: true, maxlength: 200 },
+  location:    { type: String, trim: true, maxlength: 200, default: '' },
+  latitude:    { type: Number, default: null },
+  longitude:   { type: Number, default: null },
   dateFound:   { type: Date, required: true },
   images:      [{ type: String }],
 

@@ -28,8 +28,8 @@ function mapToLostInput(report) {
         category: report.category || '',
         color: report.color || '',
         brand: report.brand || '',
-        latitude: report.location?.coordinates?.[1] || null,
-        longitude: report.location?.coordinates?.[0] || null
+        latitude: report.latitude || null,
+        longitude: report.longitude || null
     };
 }
 
@@ -40,8 +40,8 @@ function mapToFoundInput(item) {
         category: item.category || '',
         color: item.color || '',
         brand: item.brand || '',
-        latitude: item.location?.coordinates?.[1] || null,
-        longitude: item.location?.coordinates?.[0] || null
+        latitude: item.latitude || null,
+        longitude: item.longitude || null
     };
 }
 

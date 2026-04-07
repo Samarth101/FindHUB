@@ -41,28 +41,40 @@ router.get('/:id', authenticate, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// CREATE thread (linked to a lost report)
+// CREATE thread — either linked to a lost report or standalone
 router.post('/', authenticate, limits.report, [
-  body('lostReportId').notEmpty(),
   body('title').trim().notEmpty().isLength({ max: 160 }),
   body('description').trim().notEmpty().isLength({ max: 1000 }),
 ], validate, async (req, res, next) => {
   try {
-    const { lostReportId, title, description } = req.body;
-    const report = await LostReport.findOne({ _id: lostReportId, student: req.user._id });
-    if (!report) return res.status(404).json({ message: 'Lost report not found or not yours.' });
+    const { lostReportId, title, description, category, location } = req.body;
 
-    const thread = await CommunityThread.create({
-      lostReport: report._id,
+    const threadData = {
       author: req.user._id,
       title,
       description,
-      category: report.category,
-      location: report.location,
-    });
+      category: category || '',
+      location: location || '',
+    };
 
-    report.threadId = thread._id;
-    await report.save();
+    // If linked to a lost report, attach it
+    if (lostReportId) {
+      const report = await LostReport.findOne({ _id: lostReportId, student: req.user._id });
+      if (report) {
+        threadData.lostReport = report._id;
+        threadData.category = threadData.category || report.category;
+        threadData.location = threadData.location || report.location;
+        // Link thread back to report
+        report.threadId = null; // will be set below
+      }
+    }
+
+    const thread = await CommunityThread.create(threadData);
+
+    // Link back to lost report if applicable
+    if (lostReportId) {
+      await LostReport.findByIdAndUpdate(lostReportId, { threadId: thread._id });
+    }
 
     res.status(201).json({ thread });
   } catch (err) { next(err); }

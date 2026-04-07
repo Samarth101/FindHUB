@@ -11,13 +11,17 @@ async function createLostReport(req, res, next) {
       description,
       distinguishingFeatures,
       location,
-      date
+      date,
+      latitude,
+      longitude
     } = req.body
 
     const report = await LostReport.create({
       student: req.user._id,
       category, itemName, brand, color, description,
       distinguishingFeatures, location,
+      latitude: latitude || null,
+      longitude: longitude || null,
       dateLost: new Date(date),
     });
 

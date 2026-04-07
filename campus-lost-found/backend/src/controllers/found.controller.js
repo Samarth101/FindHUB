@@ -5,7 +5,8 @@ async function createFoundItem(req, res, next) {
   try {
     const {
       category, itemName, brand, color, description,
-      location, date, secretClues, submitterAnonymous, images
+      location, date, secretClues, submitterAnonymous, images,
+      latitude, longitude
     } = req.body
 
     const item = await FoundItem.create({
@@ -18,6 +19,8 @@ async function createFoundItem(req, res, next) {
       color,
       description,
       location,
+      latitude: latitude || null,
+      longitude: longitude || null,
       dateFound: new Date(date),
       images: images || [],
       secretClues: (secretClues || []).map(c => ({

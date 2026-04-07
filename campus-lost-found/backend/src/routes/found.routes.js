@@ -8,8 +8,8 @@ const limits = require('../middleware/rateLimiter')
 const intakeRules = [
   body('category').notEmpty(),
   body('itemName').trim().notEmpty().isLength({ max: 120 }),
-  body('location').trim().notEmpty().isLength({ max: 200 }),
-  body('date').isISO8601(),
+  body('location').optional({ values: 'falsy' }).trim().isLength({ max: 200 }),
+  body('date').notEmpty(),
   body('secretClues').isArray({ min: 1 }),
   body('secretClues.*.text').trim().notEmpty().isLength({ max: 500 })
 ]

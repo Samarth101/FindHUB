@@ -11,7 +11,7 @@ const replySchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const communityThreadSchema = new mongoose.Schema({
-  lostReport: { type: mongoose.Schema.Types.ObjectId, ref: 'LostReport', required: true },
+  lostReport: { type: mongoose.Schema.Types.ObjectId, ref: 'LostReport', default: null },
   author:     { type: mongoose.Schema.Types.ObjectId, ref: 'User',       required: true },
 
   /**
@@ -20,8 +20,8 @@ const communityThreadSchema = new mongoose.Schema({
    */
   title:       { type: String, required: true, maxlength: 160, trim: true },
   description: { type: String, required: true, maxlength: 1000, trim: true },
-  category:    { type: String, required: true },
-  location:    { type: String, required: true, maxlength: 200, trim: true },
+  category:    { type: String, default: '' },
+  location:    { type: String, maxlength: 200, trim: true, default: '' },
 
   replies:   [replySchema],
   viewCount: { type: Number, default: 0 },

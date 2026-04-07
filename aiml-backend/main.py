@@ -97,6 +97,42 @@ class ThreadAnalysisOutput(BaseModel):
 def root():
     return {"message": "AI/ML Microservice is running successfully."}
 
+@app.get("/demo/clip")
+def demo_clip():
+    """
+    Demo endpoint for judges to see CLIP cosine similarity in action.
+    Open http://localhost:8000/demo/clip in browser to view.
+    """
+    # Sample items to demonstrate
+    pairs = [
+        ("white Apple AirPods with scratches on back", "white earbuds Electronics"),
+        ("black JBL headphones wired", "white earbuds Electronics"),
+        ("blue Hydroflask water bottle", "white earbuds Electronics"),
+    ]
+    
+    model = get_clip()
+    base_text = pairs[0][1]
+    base_embedding = model.encode(base_text)
+    
+    results = []
+    for desc, _ in pairs:
+        emb = model.encode(desc)
+        sim = util.cos_sim(base_embedding, emb).item()
+        results.append({
+            "text": desc,
+            "cosine_similarity": round(sim, 6),
+            "embedding_preview": emb[:5].round(4).tolist()
+        })
+    
+    return {
+        "model": "clip-ViT-B-32 (OpenAI CLIP via sentence-transformers)",
+        "embedding_dimensions": len(base_embedding),
+        "base_item": base_text,
+        "base_embedding_preview": base_embedding[:5].round(4).tolist(),
+        "comparisons": results,
+        "explanation": "Higher cosine similarity = more semantically similar. CLIP understands meaning, not just keywords."
+    }
+
 @app.post("/extract_metadata")
 def extract_metadata(item: LostItemInput):
     """
@@ -123,7 +159,8 @@ def extract_metadata(item: LostItemInput):
 def match_items(query: MatchQuery):
     """
     Compares a Found item against a list of active Lost items.
-    Returns the similarity scores for each pair.
+    Uses CLIP (clip-ViT-B-32) to encode text descriptions into embeddings,
+    then computes Cosine Similarity between them.
     """
     # Create an embedding for the found item
     found_desc = query.found_item.description
@@ -131,8 +168,15 @@ def match_items(query: MatchQuery):
         found_desc += " " + query.found_item.category
     if query.found_item.color:
         found_desc += " " + query.found_item.color
+    
+    print("\n" + "="*70)
+    print("🔍 CLIP SEMANTIC MATCHING ENGINE")
+    print("="*70)
+    print(f"📦 Model: clip-ViT-B-32 (sentence-transformers)")
+    print(f"📄 Found Item Text: \"{found_desc}\"")
         
     found_embedding = get_clip().encode(found_desc)
+    print(f"🧠 Found Embedding: vector[{len(found_embedding)}] dims (first 5: {found_embedding[:5].round(4).tolist()})")
     
     results = []
     for lost_item in query.lost_items:
@@ -148,20 +192,33 @@ def match_items(query: MatchQuery):
         # Calculate Cosine Similarity
         cos_sim = util.cos_sim(found_embedding, lost_embedding).item()
         
+        print(f"\n  📋 Lost Item [{lost_item.lost_item_id[:8]}...]: \"{lost_desc}\"")
+        print(f"  🧠 Lost Embedding:  vector[{len(lost_embedding)}] dims")
+        print(f"  📐 CLIP Cosine Similarity: {cos_sim:.6f}")
+        
         # Basic manual boost if specific attributes matched perfectly
         score = cos_sim
+        boosts = []
         if query.found_item.category and lost_item.category and query.found_item.category.lower() == lost_item.category.lower():
              score += 0.05
+             boosts.append(f"category match (+0.05)")
         if query.found_item.color and lost_item.color and query.found_item.color.lower() == lost_item.color.lower():
              score += 0.05
+             boosts.append(f"color match (+0.05)")
              
         # Location boosting using Haversine
         if query.found_item.latitude and query.found_item.longitude and lost_item.latitude and lost_item.longitude:
              dist = haversine_distance(query.found_item.latitude, query.found_item.longitude, lost_item.latitude, lost_item.longitude)
              if dist < 0.2: # Under 200 meters (same building/area)
                  score += 0.20
+                 boosts.append(f"GPS proximity <200m (+0.20, dist={dist:.3f}km)")
              elif dist < 1.0: # Under 1km (same campus)
                  score += 0.05
+                 boosts.append(f"GPS proximity <1km (+0.05, dist={dist:.3f}km)")
+        
+        if boosts:
+            print(f"  🚀 Attribute Boosts: {', '.join(boosts)}")
+        print(f"  ✅ Final Composite Score: {min(score, 1.0):.6f}")
             
         results.append({
             "lost_item_id": lost_item.lost_item_id,
@@ -170,6 +227,9 @@ def match_items(query: MatchQuery):
     
     # Sort results with highest score first
     results.sort(key=lambda x: x["match_score"], reverse=True)
+    
+    print(f"\n🏆 Best Match: {results[0]['match_score']:.4f}" if results else "\n❌ No items to match")
+    print("="*70 + "\n")
     
     return {"status": "success", "matches": results}
 
@@ -221,6 +281,7 @@ class AnswerEvaluationInput(BaseModel):
     category: str
     secret_clues: List[str]
     claimant_answers: List[str]
+    qa_pairs: Optional[List[dict]] = None
 
 class AnswerEvaluationOutput(BaseModel):
     passed: bool
@@ -237,23 +298,37 @@ def evaluate_answers(input_data: AnswerEvaluationInput):
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured in .env file")
 
     client = genai.Client(api_key=api_key)
-    clues_str = ", ".join(input_data.secret_clues)
-    answers_str = ", ".join(input_data.claimant_answers)
+    clues_str = "\n".join([f"- {c}" for c in input_data.secret_clues])
+    
+    # Build Q&A context if available
+    if input_data.qa_pairs and len(input_data.qa_pairs) > 0:
+        qa_str = "\n".join([f"Q: {qa.get('question', 'N/A')}\nA: {qa.get('answer', 'N/A')}" for qa in input_data.qa_pairs])
+    else:
+        qa_str = "\n".join([f"Answer {i+1}: {a}" for i, a in enumerate(input_data.claimant_answers)])
 
     prompt = f"""
-    You are an AI adjudicator for a Lost & Found system.
-    A '{input_data.category}' was found with these Secret Clues: [{clues_str}].
-    A claimant who says they own it provided these Answers: [{answers_str}].
+    You are an AI adjudicator for a Campus Lost & Found system.
     
-    Does the claimant's answers closely match the meaning of the secret clues? 
-    They do not need to be exact words, just logically equivalent. If they are completely wrong, reject them.
+    A '{input_data.category}' was found on campus. The finder provided these SECRET CLUES about the item:
+    {clues_str}
+    
+    A student claiming to be the owner answered verification questions:
+    {qa_str}
+    
+    IMPORTANT EVALUATION RULES:
+    1. The claimant does NOT need to use the exact same words as the secret clues.
+    2. If the claimant's descriptions are SEMANTICALLY SIMILAR or logically equivalent to the clues, they PASS.
+    3. For example: "scratch on back" and "scratches on the back side" mean the same thing = PASS.
+    4. For example: "white color" and "white" mean the same thing = PASS.
+    5. Only REJECT if the answers are clearly WRONG, IRRELEVANT, or CONTRADICTORY to the clues.
+    6. Be LENIENT - if a real owner is describing their own item, their description will naturally align with the clues even if worded differently.
     
     Respond EXACTLY in this JSON format:
     {{
-        "passed": bool,
-        "reason": "Brief one sentence explanation of why it passed or failed."
+        "passed": true or false,
+        "reason": "Brief one sentence explanation."
     }}
-    Do not include markdown or anything else.
+    Do not include markdown or anything else. Just the raw JSON.
     """
 
     try:

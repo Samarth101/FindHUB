@@ -81,6 +81,8 @@ async function reviewMatch(req, res, next) {
   }
 }
 
+const MAX_CLAIM_ATTEMPTS = 2;
+
 async function submitClaim(req, res, next) {
   try {
     const { answers } = req.body
@@ -94,8 +96,19 @@ async function submitClaim(req, res, next) {
       return res.status(403).json({ message: 'Forbidden.' })
     }
 
-    const existing = await Claim.findOne({ match: match._id, claimant: req.user._id })
-    if (existing) return res.status(409).json({ message: 'Claim already submitted.' })
+    // Check attempt count
+    const attemptCount = await Claim.countDocuments({ match: match._id, claimant: req.user._id })
+    if (attemptCount >= MAX_CLAIM_ATTEMPTS) {
+      return res.status(429).json({ 
+        message: 'Maximum verification attempts reached.',
+        attemptsUsed: attemptCount,
+        maxAttempts: MAX_CLAIM_ATTEMPTS
+      })
+    }
+
+    // Check if already approved
+    const approved = await Claim.findOne({ match: match._id, claimant: req.user._id, status: 'approved' })
+    if (approved) return res.status(409).json({ message: 'Claim already approved.' })
 
     const { verifyScore, scoredAnswers, status } = await verifyService.gradeAnswers(
       answers,
@@ -112,6 +125,44 @@ async function submitClaim(req, res, next) {
       status
     })
 
+    // If approved, update match status and auto-create ChatRoom
+    if (status === 'approved') {
+      match.status = 'verified'
+      match.verifiedAt = new Date()
+      await match.save()
+
+      const ChatRoom = require('../models/ChatRoom')
+      // Always add both claimant and founder — even anonymous finders need chat for handover
+      const participants = [req.user._id]
+      if (match.foundItem.submittedBy) {
+        participants.push(match.foundItem.submittedBy)
+      }
+
+      const roomName = match.foundItem.submitterAnonymous 
+        ? `${match.lostReport.itemName} - Handover (Anonymous Finder)`
+        : `${match.lostReport.itemName} - Handover`
+
+      await ChatRoom.create({
+        name: roomName,
+        participants,
+        claim: claim._id,
+        match: match._id,
+        lostReport: match.lostReport._id,
+        foundItem: match.foundItem._id,
+      })
+
+      // Notify the finder
+      if (match.foundItem.submittedBy) {
+        await notifService.send({
+          recipient: match.foundItem.submittedBy,
+          type: 'claim_approved',
+          title: '🎉 Item claimed!',
+          body: `Someone verified ownership of "${match.lostReport.itemName}". A chat has been opened for handover.`,
+          meta: { matchId: match._id, claimId: claim._id }
+        })
+      }
+    }
+
     if (status === 'review') {
       await notifService.sendAdmins({
         type: 'claim_review',
@@ -121,7 +172,11 @@ async function submitClaim(req, res, next) {
       })
     }
 
-    res.status(201).json({ claim: { _id: claim._id, status, verifyScore } })
+    res.status(201).json({ 
+      claim: { _id: claim._id, status, verifyScore },
+      attemptsUsed: attemptCount + 1,
+      maxAttempts: MAX_CLAIM_ATTEMPTS
+    })
   } catch (err) {
     next(err)
   }
@@ -139,16 +194,27 @@ async function getVerificationQuestions(req, res, next) {
     }
 
     const secretClues = match.foundItem.secretClues || []
+
+    // Get current attempt count
+    const attemptCount = await Claim.countDocuments({ match: match._id, claimant: req.user._id })
+    if (attemptCount >= MAX_CLAIM_ATTEMPTS) {
+      return res.status(429).json({
+        message: 'Maximum verification attempts reached.',
+        attemptsUsed: attemptCount,
+        maxAttempts: MAX_CLAIM_ATTEMPTS
+      })
+    }
+
     if (secretClues.length === 0) {
       return res.json({ questions: [
         { id: 'q1', text: 'Describe a unique feature or mark on this item that only the owner would know.' },
         { id: 'q2', text: 'What brand or model is this item?' },
         { id: 'q3', text: 'Describe where exactly you last had this item.' },
-      ]})
+      ], attemptsUsed: attemptCount, maxAttempts: MAX_CLAIM_ATTEMPTS})
     }
 
     const questions = await verifyService.generateQuestions(secretClues)
-    res.json({ questions })
+    res.json({ questions, attemptsUsed: attemptCount, maxAttempts: MAX_CLAIM_ATTEMPTS })
   } catch (err) {
     next(err)
   }

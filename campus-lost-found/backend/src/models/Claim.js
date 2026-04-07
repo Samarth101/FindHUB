@@ -33,7 +33,7 @@ const claimSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 claimSchema.index({ claimant: 1, status: 1 });
-claimSchema.index({ match: 1, claimant: 1 }, { unique: true }); // one claim per user per match
+claimSchema.index({ match: 1, claimant: 1 }); // allow multiple attempts (up to MAX_CLAIM_ATTEMPTS)
 claimSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Claim', claimSchema);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ShieldCheck, Send, Loader2, Lock, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { ShieldCheck, Send, Loader2, Lock, CheckCircle, Clock, XCircle, AlertTriangle, MessageCircle } from 'lucide-react';
 import Button from '../../components/common/Button';
 import { RADIUS } from '../../utils/constants';
 import api from '../../api/http';
@@ -15,6 +15,8 @@ export default function VerifyClaim() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
+  const [attemptsUsed, setAttemptsUsed] = useState(0);
+  const [maxAttempts, setMaxAttempts] = useState(2);
 
   // Fetch match details and AI-generated verification questions
   useEffect(() => {
@@ -28,9 +30,17 @@ export default function VerifyClaim() {
         // Get AI-generated questions from Python service
         const qRes = await api.get(`/matches/${id}/questions`);
         setQuestions(qRes.data.questions || []);
+        if (qRes.data.attemptsUsed !== undefined) setAttemptsUsed(qRes.data.attemptsUsed);
+        if (qRes.data.maxAttempts !== undefined) setMaxAttempts(qRes.data.maxAttempts);
       } catch (err) {
+        // Check if max attempts already reached
+        if (err.response?.status === 429) {
+          setAttemptsUsed(err.response.data.attemptsUsed || 2);
+          setMaxAttempts(err.response.data.maxAttempts || 2);
+          setResult('max_reached');
+          return;
+        }
         console.error('Failed to load verification data:', err);
-        // Fallback to generic questions if AI fails
         setQuestions([
           { id: 'q1', text: 'Describe a unique feature or mark on this item that only the owner would know.' },
           { id: 'q2', text: 'What brand or model is this item?' },
@@ -59,12 +69,23 @@ export default function VerifyClaim() {
     try {
       const res = await api.post(`/matches/${id}/claim`, { answers: answerList });
       const status = res.data.claim?.status;
+      setAttemptsUsed(res.data.attemptsUsed || 1);
+      setMaxAttempts(res.data.maxAttempts || 2);
       setResult(status);
       if (status === 'approved') toast.success('Verification passed! Chat unlocked.');
       else if (status === 'review') toast('Submitted for manual review.', { icon: '🔍' });
-      else toast.error('Verification failed. Your answers did not match.');
+      else if (res.data.attemptsUsed >= res.data.maxAttempts) {
+        toast.error('Verification failed. No more attempts remaining.');
+      } else {
+        toast.error('Verification failed. You have 1 more attempt.');
+      }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
+      if (err.response?.status === 429) {
+        setResult('max_reached');
+        toast.error('Maximum verification attempts reached.');
+      } else {
+        toast.error(err.response?.data?.message || 'Submission failed.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -72,11 +93,24 @@ export default function VerifyClaim() {
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 size={32} className="animate-spin text-[#2d5da1]" /></div>;
 
+  if (result === 'max_reached') {
+    return (
+      <div className="max-w-md mx-auto py-12">
+        <div className="border-2 p-8 text-center text-orange-600 border-orange-500 bg-orange-50" style={{ borderRadius: RADIUS.wobbly }}>
+          <AlertTriangle size={56} className="mx-auto mb-4" />
+          <h2 className="font-heading text-3xl font-bold mb-2">Maximum Attempts Reached</h2>
+          <p className="font-body text-lg mb-6">You have used all {maxAttempts} verification attempts for this item. Please contact an admin if you believe this is your item.</p>
+          <Button onClick={() => navigate('/student/matches')}>Back to matches</Button>
+        </div>
+      </div>
+    );
+  }
+
   if (result) {
     const configs = {
       approved: { icon: CheckCircle, color: 'text-green-600 border-green-600 bg-green-50', title: 'Verification Passed!', desc: 'A chat has been created. You can now coordinate the handover.' },
       review: { icon: Clock, color: 'text-yellow-600 border-yellow-500 bg-yellow-50', title: 'Under Review', desc: 'An admin will review your answers and you will be notified.' },
-      rejected: { icon: XCircle, color: 'text-red-600 border-red-500 bg-red-50', title: 'Not Verified', desc: 'Your answers did not match. You can try again later.' },
+      rejected: { icon: XCircle, color: 'text-red-600 border-red-500 bg-red-50', title: 'Not Verified', desc: attemptsUsed < maxAttempts ? `You have ${maxAttempts - attemptsUsed} attempt(s) remaining. Try again with more accurate answers.` : 'No more attempts remaining. Contact admin.' },
     };
     const cfg = configs[result] || configs.rejected;
     const Icon = cfg.icon;
@@ -86,7 +120,19 @@ export default function VerifyClaim() {
           <Icon size={56} className="mx-auto mb-4" />
           <h2 className="font-heading text-3xl font-bold mb-2">{cfg.title}</h2>
           <p className="font-body text-lg mb-6">{cfg.desc}</p>
-          <Button onClick={() => navigate('/student/matches')}>Back to matches</Button>
+          <div className="flex gap-3 justify-center flex-wrap">
+            {result === 'approved' && (
+              <Button onClick={() => navigate('/student/chat')}>
+                <MessageCircle size={18} /> Open Chat
+              </Button>
+            )}
+            {result === 'rejected' && attemptsUsed < maxAttempts && (
+              <Button onClick={() => { setResult(null); setAnswers({}); }}>
+                Try Again
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => navigate('/student/matches')}>Back to matches</Button>
+          </div>
         </div>
       </div>
     );
@@ -98,6 +144,7 @@ export default function VerifyClaim() {
       <p className="font-body text-lg text-gray-500">
         {match ? `Verifying match for: ${match.lostReport?.itemName || 'your item'}` : 'Answer the questions below to prove you are the owner.'}
       </p>
+      <p className="font-body text-sm text-pencil/50">Attempt {attemptsUsed + 1} of {maxAttempts}</p>
 
       <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-[#2d5da1] p-4 flex items-start gap-3" style={{ borderRadius: RADIUS.wobblySm }}>
         <Lock size={20} className="text-[#2d5da1] flex-shrink-0 mt-0.5" />

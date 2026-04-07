@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { MapPin, ThumbsUp, ThumbsDown, ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { MapPin, ThumbsUp, ThumbsDown, ArrowLeft, Send, Loader2, Brain, Route, Clock, Search, Sparkles } from 'lucide-react';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import { RADIUS } from '../../utils/constants';
@@ -17,6 +17,8 @@ export default function ThreadView() {
   const [newReply, setNewReply] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState(null);
 
   useEffect(() => {
     api.get(`/community/${id}`)
@@ -44,10 +46,24 @@ export default function ThreadView() {
   const handleVote = async (replyId, vote) => {
     try {
       await api.post(`/community/${id}/replies/${replyId}/vote`, { vote });
-      // Re-fetch thread to get updated counts
       const res = await api.get(`/community/${id}`);
       setReplies(res.data.thread?.replies || []);
     } catch { /* silent */ }
+  };
+
+  const handleAnalyze = async () => {
+    if (replies.length === 0) return toast.error('Need at least one reply to analyze!');
+    setAnalyzing(true);
+    try {
+      const res = await api.post(`/community/${id}/analyze`);
+      setAnalysis(res.data);
+      toast.success('AI analysis complete!');
+    } catch (err) {
+      toast.error('AI analysis failed. Try again.');
+      console.error(err);
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 size={32} className="animate-spin text-[#2d5da1]" /></div>;
@@ -69,6 +85,80 @@ export default function ThreadView() {
           <span>Posted by {thread.author?.name || 'Anonymous'}</span>
         </div>
       </div>
+
+      {/* AI Analysis Button */}
+      <div className="flex items-center gap-3">
+        <Button onClick={handleAnalyze} disabled={analyzing} size="md">
+          {analyzing ? <><Loader2 size={16} className="animate-spin" /> Analyzing...</> : <><Brain size={16} /> 🧠 AI Analyze Thread</>}
+        </Button>
+        <span className="font-body text-sm text-gray-400">Uses NLP to summarize the trail of your lost item from community replies</span>
+      </div>
+
+      {/* AI Analysis Results */}
+      {analysis && (
+        <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-2 border-purple-300 dark:border-purple-700 p-6 space-y-5" style={{ borderRadius: RADIUS.wobblyMd }}>
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles size={22} className="text-purple-600" />
+            <h3 className="font-heading text-2xl font-bold text-purple-800 dark:text-purple-300">AI Trail Analysis</h3>
+          </div>
+
+          {/* Summary trail */}
+          <div className="bg-white/80 dark:bg-[#222]/80 border-2 border-purple-200 dark:border-purple-800 p-4" style={{ borderRadius: RADIUS.wobblySm }}>
+            <div className="flex items-center gap-2 mb-2">
+              <Route size={16} className="text-purple-600" />
+              <h4 className="font-heading text-lg font-bold dark:text-white">Summary Trail</h4>
+            </div>
+            <p className="font-body text-base text-gray-700 dark:text-gray-300 italic">"{analysis.summary_trail}"</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Likely Locations */}
+            <div className="bg-white/80 dark:bg-[#222]/80 border border-purple-200 dark:border-purple-800 p-4" style={{ borderRadius: RADIUS.wobblySm }}>
+              <div className="flex items-center gap-2 mb-2">
+                <MapPin size={16} className="text-red-500" />
+                <h4 className="font-heading text-base font-bold dark:text-white">Likely Locations</h4>
+              </div>
+              <ul className="space-y-1">
+                {(analysis.likely_locations || []).map((loc, i) => (
+                  <li key={i} className="font-body text-sm text-gray-600 dark:text-gray-300 flex items-start gap-1">
+                    <span className="text-red-400 mt-1">📍</span> {loc}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Timeline */}
+            <div className="bg-white/80 dark:bg-[#222]/80 border border-purple-200 dark:border-purple-800 p-4" style={{ borderRadius: RADIUS.wobblySm }}>
+              <div className="flex items-center gap-2 mb-2">
+                <Clock size={16} className="text-blue-500" />
+                <h4 className="font-heading text-base font-bold dark:text-white">Timeline</h4>
+              </div>
+              <ul className="space-y-1">
+                {(analysis.timeline_events || []).map((evt, i) => (
+                  <li key={i} className="font-body text-sm text-gray-600 dark:text-gray-300 flex items-start gap-1">
+                    <span className="text-blue-400 mt-1">🕐</span> {evt}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Synthesized Clues */}
+            <div className="bg-white/80 dark:bg-[#222]/80 border border-purple-200 dark:border-purple-800 p-4" style={{ borderRadius: RADIUS.wobblySm }}>
+              <div className="flex items-center gap-2 mb-2">
+                <Search size={16} className="text-green-500" />
+                <h4 className="font-heading text-base font-bold dark:text-white">Clues</h4>
+              </div>
+              <ul className="space-y-1">
+                {(analysis.synthesized_clues || []).map((clue, i) => (
+                  <li key={i} className="font-body text-sm text-gray-600 dark:text-gray-300 flex items-start gap-1">
+                    <span className="text-green-400 mt-1">🔍</span> {clue}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       <h2 className="font-heading text-2xl font-bold dark:text-white">Replies ({replies.length})</h2>
 

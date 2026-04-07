@@ -17,6 +17,7 @@ export default function ReportFound() {
     category: '', itemName: '', brand: '', color: '', description: '',
     location: '', date: '', images: [],
     secretClues: [''],
+    latitude: null, longitude: null
   });
 
   const set = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -35,8 +36,12 @@ export default function ReportFound() {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    if (!form.category || !form.itemName || !form.location || !form.date) {
+    if (!form.category || !form.itemName || !form.date) {
       return toast.error('Please fill in all required fields!')
+    }
+
+    if (!form.location && !form.latitude) {
+      return toast.error('Please enter a location or tag GPS coordinates!')
     }
 
     if (!form.images || form.images.length === 0) {
@@ -60,7 +65,9 @@ export default function ReportFound() {
         date: form.date,
         images: form.images,
         submitterAnonymous: anonymous,
-        secretClues: validClues.map(c => ({ text: c.trim() }))
+        secretClues: validClues.map(c => ({ text: c.trim() })),
+        latitude: form.latitude,
+        longitude: form.longitude
       })
 
       toast.success('Found item reported! Thank you for helping.')
@@ -164,6 +171,22 @@ export default function ReportFound() {
                 <MapPin size={18} strokeWidth={2.5} className="absolute left-3 top-1/2 -translate-y-1/2 text-pencil/40" />
                 <input type="text" name="location" value={form.location} onChange={set} placeholder="e.g. Canteen counter" className={inputCls} style={{ borderRadius: RADIUS.wobblySm }} />
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!navigator.geolocation) return toast.error('GPS not supported on this browser');
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      setForm(f => ({ ...f, latitude: pos.coords.latitude, longitude: pos.coords.longitude }));
+                      toast.success(`GPS tagged: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+                    },
+                    () => toast.error('Location permission denied')
+                  );
+                }}
+                className="mt-2 flex items-center gap-1 font-body text-sm text-[#2d5da1] hover:underline"
+              >
+                <MapPin size={14} /> {form.latitude ? `📍 Tagged (${form.latitude.toFixed(4)}, ${form.longitude.toFixed(4)})` : 'Tag my GPS location'}
+              </button>
             </div>
             <div>
               <label className="font-body text-base text-pencil/70 mb-1 block">Date found *</label>

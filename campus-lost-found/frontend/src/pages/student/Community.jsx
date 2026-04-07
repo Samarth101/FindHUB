@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MessageCircle, MapPin, Clock, Plus, Search, Loader2 } from 'lucide-react';
+import { MessageCircle, MapPin, Clock, Plus, Search, Loader2, X } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
-import { RADIUS } from '../../utils/constants';
+import { RADIUS, CATEGORIES } from '../../utils/constants';
 import { timeAgo } from '../../utils/formatDate';
 import { useAuth } from '../../auth/AuthProvider';
 import api from '../../api/http';
+import toast from 'react-hot-toast';
 
 export default function Community() {
   const { user } = useAuth();
   const [threads, setThreads] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ title: '', description: '', category: '', location: '' });
 
   useEffect(() => {
     api.get('/community', { params: { limit: 30 } })
@@ -20,6 +24,23 @@ export default function Community() {
       .catch(err => console.error('Failed to load threads:', err))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    if (!form.title.trim() || !form.description.trim()) return toast.error('Title and description are required!');
+    setCreating(true);
+    try {
+      const res = await api.post('/community', form);
+      setThreads(prev => [res.data.thread, ...prev]);
+      setForm({ title: '', description: '', category: '', location: '' });
+      setShowForm(false);
+      toast.success('Thread created!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create thread');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const filtered = threads.filter(t => {
     const q = search.toLowerCase();
@@ -45,10 +66,59 @@ export default function Community() {
           <h1 className="font-heading text-4xl md:text-5xl font-bold dark:text-white">Community<span className="text-[#ff4d4d]">.</span></h1>
           <p className="font-body text-lg text-gray-500 mt-1">Campus-wide threads for lost items. Share sightings and help each other!</p>
         </div>
-        <Link to="/student/report-lost">
-          <Button size="md"><Plus size={18} strokeWidth={2.5} /> New thread</Button>
-        </Link>
+        <Button size="md" onClick={() => setShowForm(!showForm)}>
+          {showForm ? <><X size={18} /> Cancel</> : <><Plus size={18} strokeWidth={2.5} /> New Thread</>}
+        </Button>
       </div>
+
+      {/* Inline Create Thread Form */}
+      {showForm && (
+        <form onSubmit={handleCreate} className="bg-white dark:bg-[#222] border-2 border-[#2d5da1] p-6 space-y-4 shadow-[3px_3px_0px_#2d5da1]" style={{ borderRadius: RADIUS.wobblyMd }}>
+          <h2 className="font-heading text-2xl font-bold dark:text-white">Create a Thread</h2>
+          <div>
+            <label className="font-body text-sm text-gray-500 mb-1 block">Title *</label>
+            <input
+              value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
+              placeholder="e.g. Lost white earbuds near Library"
+              className="w-full px-4 py-3 border-2 border-[#2d2d2d] bg-white dark:bg-[#333] dark:text-white font-body"
+              style={{ borderRadius: RADIUS.wobblySm }} maxLength={160}
+            />
+          </div>
+          <div>
+            <label className="font-body text-sm text-gray-500 mb-1 block">Description *</label>
+            <textarea
+              value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
+              placeholder="Describe the item vaguely (no brand, model, or personal details). Ask if anyone has seen it."
+              rows={3}
+              className="w-full px-4 py-3 border-2 border-[#2d2d2d] bg-white dark:bg-[#333] dark:text-white font-body resize-none"
+              style={{ borderRadius: RADIUS.wobblySm }} maxLength={1000}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="font-body text-sm text-gray-500 mb-1 block">Category</label>
+              <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
+                className="w-full px-4 py-3 border-2 border-[#2d2d2d] bg-white dark:bg-[#333] dark:text-white font-body"
+                style={{ borderRadius: RADIUS.wobblySm }}>
+                <option value="">Select...</option>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="font-body text-sm text-gray-500 mb-1 block">Last seen at</label>
+              <input
+                value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
+                placeholder="e.g. Library 2nd floor"
+                className="w-full px-4 py-3 border-2 border-[#2d2d2d] bg-white dark:bg-[#333] dark:text-white font-body"
+                style={{ borderRadius: RADIUS.wobblySm }} maxLength={200}
+              />
+            </div>
+          </div>
+          <Button type="submit" className="w-full" disabled={creating}>
+            {creating ? 'Creating...' : 'Post Thread'}
+          </Button>
+        </form>
+      )}
 
       {/* Search */}
       <div className="relative">
