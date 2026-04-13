@@ -1,5 +1,6 @@
 const FoundItem = require('../models/FoundItem')
 const matchingService = require('../services/matching.service')
+const mailService = require('../services/mail.service')
 
 async function createFoundItem(req, res, next) {
   try {
@@ -29,6 +30,11 @@ async function createFoundItem(req, res, next) {
     })
 
     matchingService.triggerMatchForFound(item._id).catch(console.error)
+    
+    // Send thank you email to finder (if student)
+    if (req.user.role !== 'admin') {
+      mailService.sendFoundItemThankYou(req.user, item).catch(err => console.error('Email failed:', err))
+    }
 
     if (req.user.role === 'admin') {
       return res.status(201).json({ item })

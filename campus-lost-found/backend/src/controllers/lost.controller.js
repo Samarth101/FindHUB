@@ -1,5 +1,6 @@
 const LostReport = require('../models/LostReport');
 const matchingService = require('../services/matching.service');
+const mailService = require('../services/mail.service');
 
 async function createLostReport(req, res, next) {
   try {
@@ -27,6 +28,9 @@ async function createLostReport(req, res, next) {
 
     // Kick off async ML matching (don't await — respond immediately)
     matchingService.triggerMatchForLost(report._id).catch(console.error);
+
+    // Send confirmation email (async)
+    mailService.sendLostReportConfirmation(req.user, report).catch(err => console.error('Email failed:', err));
 
     res.status(201).json({ report });
   } catch (err) {

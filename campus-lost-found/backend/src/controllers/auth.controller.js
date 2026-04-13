@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { jwtSecret, jwtExpiry } = require('../config/env');
+const mailService = require('../services/mail.service');
 
 function signToken(userId, role) {
   return jwt.sign({ id: userId, role }, jwtSecret, { expiresIn: jwtExpiry });
@@ -15,6 +16,10 @@ async function register(req, res, next) {
     if (existing) return res.status(409).json({ message: 'Email already registered.' })
     const user = new User({ name, email, passwordHash: password, phone })
     await user.save()
+
+    // Send welcome email (async - don't block response)
+    mailService.sendWelcomeEmail(user).catch(err => console.error('Welcome email failed:', err));
+
     const token = signToken(user._id, user.role)
     res.status(201).json({ token, user })
   } catch (err) {

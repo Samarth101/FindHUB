@@ -6,6 +6,7 @@ const FoundItem  = require('../models/FoundItem');
 const ChatRoom   = require('../models/ChatRoom');
 const notifService = require('../services/notification.service');
 const auditService = require('../services/audit.service');
+const mailService  = require('../services/mail.service');
 
 /**
  * GET /api/claims  — admin: all claims
@@ -88,7 +89,8 @@ async function reviewClaim(req, res, next) {
 
     const claim = await Claim.findById(req.params.id)
       .populate('lostReport')
-      .populate('foundItem');
+      .populate('foundItem')
+      .populate('claimant', 'name email');
     if (!claim) return res.status(404).json({ message: 'Claim not found.' });
 
     claim.status     = decision;
@@ -112,6 +114,9 @@ async function reviewClaim(req, res, next) {
       body: notifBody,
       meta: { claimId: claim._id },
     });
+
+    // Send email update (async)
+    mailService.sendClaimUpdate(claim.claimant, claim, decision).catch(err => console.error('Email failed:', err));
 
     // If approved, update statuses and create handover
     if (decision === 'approved') {

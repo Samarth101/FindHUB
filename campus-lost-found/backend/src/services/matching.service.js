@@ -3,6 +3,7 @@ const LostReport = require('../models/LostReport')
 const FoundItem = require('../models/FoundItem')
 const Match = require('../models/Match')
 const notifService = require('./notification.service')
+const mailService = require('./mail.service')
 const { mlServiceUrl } = require('../config/env')
 
 const MATCH_THRESHOLD = 0.60
@@ -61,7 +62,7 @@ function foundItemText(item) {
 }
 
 async function triggerMatchForLost(lostReportId) {
-  const report = await LostReport.findById(lostReportId)
+  const report = await LostReport.findById(lostReportId).populate('student')
   if (!report) return
 
   const foundItems = await FoundItem.find({ status: 'unmatched', isDeleted: false })
@@ -121,6 +122,9 @@ async function triggerMatchForLost(lostReportId) {
         body: `We found a ${Math.round(best.score * 100)}% match for your ${report.itemName}. Verify ownership now.`,
         meta: { matchId: best.match._id }
       })
+
+      // Send email notification (async)
+      mailService.sendMatchNotification(report.student, report.itemName).catch(err => console.error('Email failed:', err));
     }
   }
 
@@ -131,7 +135,7 @@ async function triggerMatchForFound(foundItemId) {
   const item = await FoundItem.findById(foundItemId)
   if (!item) return
 
-  const reports = await LostReport.find({ status: 'searching', isDeleted: false })
+  const reports = await LostReport.find({ status: 'searching', isDeleted: false }).populate('student')
   if (reports.length === 0) return;
 
   const query = {
@@ -167,6 +171,9 @@ async function triggerMatchForFound(foundItemId) {
                         body: `We found a ${Math.round(score * 100)}% match for your ${report.itemName}. Verify ownership now.`,
                         meta: { matchId: match._id }
                       })
+
+                      // Send email notification (async)
+                      mailService.sendMatchNotification(report.student, report.itemName).catch(err => console.error('Email failed:', err));
                   }
                 }
               }
