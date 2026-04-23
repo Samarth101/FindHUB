@@ -131,6 +131,10 @@ async function submitClaim(req, res, next) {
       match.verifiedAt = new Date()
       await match.save()
 
+      // Send email to claimant
+      const mailService = require('../services/mail.service')
+      mailService.sendClaimUpdate(req.user, claim, 'approved').catch(err => console.error('Email failed:', err))
+
       // Update FoundItem and LostReport status to "claimed"
       const FoundItem = require('../models/FoundItem')
       const LostReport = require('../models/LostReport')

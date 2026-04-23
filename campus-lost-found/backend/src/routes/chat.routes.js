@@ -44,7 +44,7 @@ router.post('/:id/messages', authenticate, [
   body('text').trim().notEmpty().isLength({ max: 2000 }),
 ], validate, async (req, res, next) => {
   try {
-    const room = await ChatRoom.findById(req.params.id);
+    const room = await ChatRoom.findById(req.params.id).populate('participants', 'name email');
     if (!room || room.isClosed) return res.status(404).json({ message: 'Room unavailable.' });
 
     const isMember = room.participants.some(p => p.equals(req.user._id));
@@ -61,12 +61,25 @@ router.post('/:id/messages', authenticate, [
     const newMsg = room.messages[room.messages.length - 1];
 
     // Emit to room via Socket.io
+    let clientsInRoom = 0;
     try {
-      getIO().to(`room:${room._id}`).emit('message', {
+      const io = getIO();
+      io.to(`room:${room._id}`).emit('message', {
         ...newMsg.toObject(),
         sender: { _id: req.user._id, name: req.user.name, avatar: req.user.avatar },
       });
+      const roomClients = io.sockets.adapter.rooms.get(`room:${room._id}`);
+      clientsInRoom = roomClients ? roomClients.size : 0;
     } catch { /* socket not ready */ }
+
+    // If there's only 1 client (the sender) in the room, the other(s) are offline.
+    if (clientsInRoom < 2) {
+      const mailService = require('../services/mail.service');
+      const recipients = room.participants.filter(p => !p._id.equals(req.user._id));
+      for (const recipient of recipients) {
+        mailService.sendChatMessageNotification(recipient, req.user.name, room.name).catch(err => console.error('Chat email failed:', err));
+      }
+    }
 
     res.status(201).json({ message: newMsg });
   } catch (err) { next(err); }

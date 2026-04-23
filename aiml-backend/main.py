@@ -31,7 +31,7 @@ def get_gemini_client():
     return genai.Client(api_key=api_key)
 
 def call_gemini_with_retry(client, model, contents, max_retries=3):
-    """Call Gemini with automatic retry, strictly using gemini-2.5-flash as requested."""
+    """Call Gemini with automatic retry,using gemini-2.5-flash """
     
     target_model = 'gemini-2.5-flash'
 

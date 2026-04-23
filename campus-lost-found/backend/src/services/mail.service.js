@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-const { email: emailConfig } = require('../config/env');
+const { email: emailConfig, clientUrl } = require('../config/env');
 
 const transporter = nodemailer.createTransport({
   host: emailConfig.host,
@@ -126,7 +126,7 @@ async function sendMatchNotification(user, reportName) {
       <p>Our AI has identified a found item that closely matches your lost report for **${reportName}**.</p>
       <p>Please log in to FindHUB to verify the item and submit a claim if it belongs to you.</p>
       <div style="text-align: center; margin: 30px 0;">
-        <a href="http://localhost:5173/dashboard" style="background: #4f46e5; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Check Match Now</a>
+        <a href="${clientUrl}/dashboard" style="background: #4f46e5; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Check Match Now</a>
       </div>
       <br>
       <p>Best regards,<br>FindHUB Team</p>
@@ -135,10 +135,28 @@ async function sendMatchNotification(user, reportName) {
   return sendMail({ to: user.email, subject, html, text: `A possible match for your ${reportName} has been found!` });
 }
 
+async function sendChatMessageNotification(user, senderName, roomName) {
+  const subject = `New Message from ${senderName} on FindHUB`;
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+      <h2 style="color: #4f46e5;">You have a new message! 💬</h2>
+      <p>Hi ${user.name},</p>
+      <p><strong>${senderName}</strong> sent you a new message in the chat for <strong>"${roomName}"</strong>.</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${clientUrl}/dashboard" style="background: #4f46e5; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">View Message</a>
+      </div>
+      <br>
+      <p>Best regards,<br>FindHUB Team</p>
+    </div>
+  `;
+  return sendMail({ to: user.email, subject, html, text: `You have a new message from ${senderName}.` });
+}
+
 module.exports = {
   sendWelcomeEmail,
   sendLostReportConfirmation,
   sendFoundItemThankYou,
   sendClaimUpdate,
   sendMatchNotification,
+  sendChatMessageNotification,
 };
