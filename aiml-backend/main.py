@@ -31,36 +31,27 @@ def get_gemini_client():
     return genai.Client(api_key=api_key)
 
 def call_gemini_with_retry(client, model, contents, max_retries=3):
-    """Call Gemini with automatic retry and model fallback on rate limit errors."""
+    """Call Gemini with automatic retry, strictly using gemini-2.5-flash as requested."""
     
-    # Try the originally requested model, and provide fallbacks since different keys have different quotas
-    models_to_try = [model, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest']
-    # Remove duplicates while preserving order
-    models_to_try = list(dict.fromkeys(models_to_try))
+    target_model = 'gemini-2.5-flash'
 
-    for m in models_to_try:
-        for attempt in range(max_retries):
-            try:
-                print(f"🤖 Trying model: {m} (attempt {attempt+1})")
-                response = client.models.generate_content(model=m, contents=contents)
-                print(f"✅ Success with model: {m}")
-                return response
-            except Exception as e:
-                error_str = str(e)
-                # If 404 model not found, don't wait, just try next model immediately
-                if '404' in error_str or 'NOT_FOUND' in error_str:
-                    print(f"❌ Model {m} not available on this API key. Skipping.")
-                    break # Break retry loop, move to next model
-                elif '429' in error_str or 'RESOURCE_EXHAUSTED' in error_str:
-                    wait_time = (attempt + 1) * 3  # 3s, 6s, 9s
-                    print(f"⏳ Rate limited on {m} (attempt {attempt+1}/{max_retries}). Waiting {wait_time}s...")
-                    time.sleep(wait_time)
-                    if attempt == max_retries - 1:
-                        print(f"❌ Quota exhausted for {m}, trying next model...")
-                        break  # try next model
-                else:
-                    raise e
-    raise Exception("All Gemini models exhausted or inaccessible on this API key. Please check your Google AI Studio quota.")
+    for attempt in range(max_retries):
+        try:
+            print(f"🤖 Trying model: {target_model} (attempt {attempt+1})")
+            response = client.models.generate_content(model=target_model, contents=contents)
+            print(f"✅ Success with model: {target_model}")
+            return response
+        except Exception as e:
+            error_str = str(e)
+            if '429' in error_str or 'RESOURCE_EXHAUSTED' in error_str:
+                wait_time = (attempt + 1) * 3  # 3s, 6s, 9s
+                print(f"⏳ Rate limited on {target_model} (attempt {attempt+1}/{max_retries}). Waiting {wait_time}s...")
+                time.sleep(wait_time)
+                if attempt == max_retries - 1:
+                    raise Exception(f"Quota exhausted for {target_model} after {max_retries} attempts.")
+            else:
+                raise e
+    raise Exception("Failed to generate content with Gemini.")
 
 @app.get("/")
 def read_root():
@@ -206,15 +197,19 @@ def extract_metadata(item: LostItemInput):
     # Use spaCy for NLP extraction 
     doc = get_nlp()(item.description.lower())
     
-    # Extract noun chunks for potential categories
-    keywords = [chunk.root.text for chunk in doc.noun_chunks]
+    # Extract keywords (fallback if noun_chunks not available)
+    if doc.has_annotation("DEP"):
+        keywords = [chunk.root.text for chunk in doc.noun_chunks]
+    else:
+        # Fallback to basic tokenization (filter stop words manually)
+        keywords = [token.text for token in doc if len(token.text) > 3 and not token.is_stop]
     
     # Extract colors by matching tokens
     extracted_colors = [token.text for token in doc if token.text in COLORS]
     
     extracted_data = {
         "identified_keywords": list(set(keywords)),
-        "suggested_category": keywords[-1] if keywords else None, # Simple heuristic: last noun chunk root
+        "suggested_category": keywords[-1] if keywords else None, # Simple heuristic: last keyword
         "suggested_color": extracted_colors[0] if extracted_colors else None
     }
     return {"status": "success", "data": extracted_data}
